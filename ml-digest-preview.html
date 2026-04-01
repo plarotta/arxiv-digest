@@ -1,0 +1,940 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ML Digest — March 28, 2026</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0c0c0e;
+    --surface: #141418;
+    --surface-hover: #1a1a20;
+    --border: #232329;
+    --border-accent: #2d2d36;
+    --text: #e8e6e3;
+    --text-secondary: #8a8891;
+    --text-dim: #5c5a63;
+    --accent: #c4a7ff;
+    --accent-muted: #7c5cbf;
+    --tag-bg: #1e1b2e;
+    --tag-text: #b39ddb;
+    --rank-gold: #f0c674;
+    --rank-silver: #a8b5c8;
+    --rank-bronze: #c49a6c;
+    --rank-default: #5c5a63;
+    --cat-lg: #6ec6ff;
+    --cat-cl: #aed581;
+    --cat-ai: #ffab91;
+    --cat-cv: #ce93d8;
+    --cat-ro: #80deea;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Sans', -apple-system, sans-serif;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .noise-overlay {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 9999;
+    opacity: 0.025;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  header {
+    padding: 3rem 2rem 2rem;
+    max-width: 900px;
+    margin: 0 auto;
+    border-bottom: 1px solid var(--border);
+  }
+
+  header h1 {
+    font-family: 'DM Serif Display', Georgia, serif;
+    font-size: 2.4rem;
+    font-weight: 400;
+    letter-spacing: -0.02em;
+    color: var(--text);
+    margin-bottom: 0.4rem;
+  }
+
+  header h1 span.accent { color: var(--accent); }
+
+  .subtitle {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.82rem;
+    color: var(--text-dim);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .meta-bar {
+    display: flex;
+    gap: 1.5rem;
+    margin-top: 1rem;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    font-family: 'IBM Plex Mono', monospace;
+  }
+
+  .meta-bar .stat { display: flex; align-items: center; gap: 0.35rem; }
+  .meta-bar .dot { color: var(--accent-muted); }
+
+  main {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 1.5rem 2rem 4rem;
+  }
+
+  .paper-card {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.5rem 1.6rem;
+    margin-bottom: 1rem;
+    background: var(--surface);
+    transition: border-color 0.2s, background 0.2s;
+    position: relative;
+  }
+
+  .paper-card:hover {
+    border-color: var(--border-accent);
+    background: var(--surface-hover);
+  }
+
+  .card-header {
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start;
+    margin-bottom: 0.75rem;
+  }
+
+  .rank-badge {
+    flex-shrink: 0;
+    width: 2.2rem;
+    height: 2.2rem;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 600;
+    font-size: 0.85rem;
+    border: 1px solid;
+  }
+
+  .rank-1 { color: var(--rank-gold); border-color: var(--rank-gold); background: rgba(240,198,116,0.08); }
+  .rank-2 { color: var(--rank-silver); border-color: var(--rank-silver); background: rgba(168,181,200,0.06); }
+  .rank-3 { color: var(--rank-bronze); border-color: var(--rank-bronze); background: rgba(196,154,108,0.06); }
+  .rank-other { color: var(--rank-default); border-color: var(--border); background: transparent; }
+
+  .card-title {
+    font-family: 'DM Serif Display', Georgia, serif;
+    font-size: 1.15rem;
+    font-weight: 400;
+    line-height: 1.35;
+    color: var(--text);
+  }
+
+  .card-title a {
+    color: inherit;
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: border-color 0.2s;
+  }
+
+  .card-title a:hover { border-bottom-color: var(--accent); }
+
+  .card-authors {
+    font-size: 0.78rem;
+    color: var(--text-dim);
+    margin: 0.25rem 0 0.6rem;
+    padding-left: 3.2rem;
+  }
+
+  .card-summary {
+    font-size: 0.9rem;
+    line-height: 1.65;
+    color: var(--text-secondary);
+    margin-bottom: 0.75rem;
+    padding-left: 3.2rem;
+  }
+
+  .contributions {
+    padding-left: 3.2rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .contribution {
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    padding: 0.3rem 0 0.3rem 1rem;
+    border-left: 2px solid var(--border-accent);
+    margin-bottom: 0.3rem;
+  }
+
+  .card-footer {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    padding-left: 3.2rem;
+    align-items: center;
+  }
+
+  .tag {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.68rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    background: var(--tag-bg);
+    color: var(--tag-text);
+    letter-spacing: 0.02em;
+  }
+
+  .cat-tag {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.68rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    font-weight: 500;
+  }
+
+  .cat-cs-LG { background: rgba(110,198,255,0.1); color: var(--cat-lg); }
+  .cat-cs-CL { background: rgba(174,213,129,0.1); color: var(--cat-cl); }
+  .cat-cs-AI { background: rgba(255,171,145,0.1); color: var(--cat-ai); }
+  .cat-cs-CV { background: rgba(206,147,216,0.1); color: var(--cat-cv); }
+  .cat-cs-RO { background: rgba(128,222,234,0.1); color: var(--cat-ro); }
+
+  .rank-rationale {
+    font-size: 0.78rem;
+    color: var(--text-dim);
+    font-style: italic;
+    padding-left: 3.2rem;
+    margin-bottom: 0.5rem;
+  }
+
+  footer {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 2rem;
+    border-top: 1px solid var(--border);
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    font-family: 'IBM Plex Mono', monospace;
+    text-align: center;
+  }
+
+  @media (max-width: 640px) {
+    header { padding: 2rem 1.2rem 1.5rem; }
+    main { padding: 1rem 1.2rem 3rem; }
+    header h1 { font-size: 1.8rem; }
+    .card-authors, .card-summary, .contributions, .card-footer, .rank-rationale {
+      padding-left: 0;
+    }
+    .card-header { flex-direction: column; gap: 0.5rem; }
+    .rank-badge { width: 1.8rem; height: 1.8rem; font-size: 0.75rem; }
+  }
+</style>
+</head>
+<body>
+<div class="noise-overlay"></div>
+
+<header>
+  <h1>ML <span class="accent">Digest</span></h1>
+  <p class="subtitle">Top papers from arxiv &middot; March 28, 2026</p>
+  <div class="meta-bar">
+    <div class="stat"><span class="dot">&bull;</span> 312 papers scanned</div>
+    <div class="stat"><span class="dot">&bull;</span> 15 selected</div>
+    <div class="stat"><span class="dot">&bull;</span> cs.LG, cs.CL, cs.AI, cs.CV, cs.RO</div>
+  </div>
+</header>
+
+<main>
+  
+  <article class="paper-card">
+    <div class="card-header">
+      <div class="rank-badge rank-1">
+        1
+      </div>
+      <div class="card-title">
+        <a href="https://arxiv.org/abs/2503.14001" target="_blank" rel="noopener">Mamba-3: Gated Linear Attention with Hardware-Aware State Expansion</a>
+      </div>
+    </div>
+
+    <div class="card-authors">Albert Gu, Tri Dao, Ankit Patel</div>
+
+    <div class="card-summary">Introduces a third-generation selective state space model that unifies gated linear attention with Mamba's selective scan. The new architecture matches Transformer quality on language modeling at 7B scale while maintaining linear-time inference, achieving 4.2× throughput at 32k context.</div>
+
+    
+    <div class="contributions">
+      
+      <div class="contribution">A unified formulation connecting gated linear attention and selective SSMs via a shared recurrence</div>
+      
+      <div class="contribution">Hardware-aware state expansion that dynamically adjusts SSM state dimension based on sequence length</div>
+      
+      <div class="contribution">SOTA perplexity-throughput tradeoff at 7B parameter scale across 5 language benchmarks</div>
+      
+    </div>
+    
+
+    
+    <div class="rank-rationale">&ldquo;Major architectural advance unifying two dominant paradigms with strong empirical results at scale.&rdquo;</div>
+    
+
+    <div class="card-footer">
+      
+      <span class="cat-tag cat-cs-LG">cs.LG</span>
+      
+      
+      <span class="tag">architectures</span>
+      
+      <span class="tag">efficiency</span>
+      
+      <span class="tag">nlp</span>
+      
+    </div>
+  </article>
+  
+  <article class="paper-card">
+    <div class="card-header">
+      <div class="rank-badge rank-2">
+        2
+      </div>
+      <div class="card-title">
+        <a href="https://arxiv.org/abs/2503.14002" target="_blank" rel="noopener">ReasonVLM: Chain-of-Thought Grounding for Vision-Language Models via Spatial Reasoning Traces</a>
+      </div>
+    </div>
+
+    <div class="card-authors">Yifan Li, Zhengyuan Yang, Jianfeng Gao, Chunyuan Li</div>
+
+    <div class="card-summary">Proposes a training framework that teaches VLMs to produce step-by-step spatial reasoning traces before answering visual questions. By grounding intermediate reasoning steps to image regions, the model achieves 12% improvement on compositional VQA benchmarks and produces interpretable reasoning chains.</div>
+
+    
+    <div class="contributions">
+      
+      <div class="contribution">Spatial reasoning trace format that links each CoT step to bounding box coordinates</div>
+      
+      <div class="contribution">Automated pipeline for generating grounded reasoning data from existing VQA datasets</div>
+      
+      <div class="contribution">12.3% accuracy gain on GQA and 8.7% on CLEVR-Humans over GPT-4V baseline</div>
+      
+    </div>
+    
+
+    
+    <div class="rank-rationale">&ldquo;Addresses a key VLM weakness with an elegant training approach and large empirical gains.&rdquo;</div>
+    
+
+    <div class="card-footer">
+      
+      <span class="cat-tag cat-cs-CV">cs.CV</span>
+      
+      <span class="cat-tag cat-cs-CL">cs.CL</span>
+      
+      
+      <span class="tag">multimodal</span>
+      
+      <span class="tag">vision</span>
+      
+      <span class="tag">nlp</span>
+      
+    </div>
+  </article>
+  
+  <article class="paper-card">
+    <div class="card-header">
+      <div class="rank-badge rank-3">
+        3
+      </div>
+      <div class="card-title">
+        <a href="https://arxiv.org/abs/2503.14003" target="_blank" rel="noopener">Scaling Laws for Reinforcement Learning from Human Feedback: A Unified Analysis</a>
+      </div>
+    </div>
+
+    <div class="card-authors">Jan Leike, David Krueger, Tom Brown</div>
+
+    <div class="card-summary">Presents the first comprehensive scaling laws for RLHF, covering reward model accuracy, policy optimization efficiency, and alignment tax as functions of model size, data, and compute. Finds that reward model scaling follows different exponents than base LM scaling, with implications for optimal resource allocation.</div>
+
+    
+    <div class="contributions">
+      
+      <div class="contribution">Empirical scaling laws for reward models spanning 125M to 70B parameters</div>
+      
+      <div class="contribution">Discovery that alignment tax decreases super-linearly with model scale</div>
+      
+      <div class="contribution">Compute-optimal RLHF recipes that reduce training cost by 35% at fixed quality</div>
+      
+    </div>
+    
+
+    
+    <div class="rank-rationale">&ldquo;Fills a critical gap in understanding how RLHF scales, directly actionable for practitioners.&rdquo;</div>
+    
+
+    <div class="card-footer">
+      
+      <span class="cat-tag cat-cs-LG">cs.LG</span>
+      
+      <span class="cat-tag cat-cs-AI">cs.AI</span>
+      
+      
+      <span class="tag">rl</span>
+      
+      <span class="tag">training</span>
+      
+      <span class="tag">safety</span>
+      
+      <span class="tag">theory</span>
+      
+    </div>
+  </article>
+  
+  <article class="paper-card">
+    <div class="card-header">
+      <div class="rank-badge rank-other">
+        4
+      </div>
+      <div class="card-title">
+        <a href="https://arxiv.org/abs/2503.14004" target="_blank" rel="noopener">DiffusionPolicy-2: Real-Time Bimanual Manipulation via Cascaded Consistency Models</a>
+      </div>
+    </div>
+
+    <div class="card-authors">Cheng Chi, Zhenjia Xu, Shuran Song</div>
+
+    <div class="card-summary">Extends diffusion policy to bimanual robot manipulation by cascading two consistency models — one for high-level task decomposition and one for low-level action generation. Achieves 15Hz real-time control and 89% success rate on 12 bimanual tasks, including cloth folding and object handover.</div>
+
+    
+    <div class="contributions">
+      
+      <div class="contribution">Cascaded consistency model architecture enabling real-time diffusion policy inference</div>
+      
+      <div class="contribution">Task decomposition head that breaks bimanual tasks into coordinated single-arm subtasks</div>
+      
+      <div class="contribution">89% average success rate across 12 real-world bimanual manipulation tasks</div>
+      
+    </div>
+    
+
+    
+    <div class="rank-rationale">&ldquo;Significant step toward practical bimanual manipulation with real-time diffusion policies.&rdquo;</div>
+    
+
+    <div class="card-footer">
+      
+      <span class="cat-tag cat-cs-RO">cs.RO</span>
+      
+      <span class="cat-tag cat-cs-LG">cs.LG</span>
+      
+      
+      <span class="tag">robotics</span>
+      
+      <span class="tag">generative</span>
+      
+      <span class="tag">efficiency</span>
+      
+    </div>
+  </article>
+  
+  <article class="paper-card">
+    <div class="card-header">
+      <div class="rank-badge rank-other">
+        5
+      </div>
+      <div class="card-title">
+        <a href="https://arxiv.org/abs/2503.14005" target="_blank" rel="noopener">TokenFormer: Replacing Attention with Learned Token-to-Token Routing</a>
+      </div>
+    </div>
+
+    <div class="card-authors">Hao Wang, Yuxuan Zhang, Quoc Le</div>
+
+    <div class="card-summary">Proposes replacing the attention mechanism with a learned sparse routing function that directly maps input tokens to output representations. The routing function is parameterized as a lightweight MLP applied per-token, achieving O(n) complexity while retaining 97% of Transformer quality at GPT-2 scale.</div>
+
+    
+    <div class="contributions">
+      
+      <div class="contribution">Token-to-token routing formulation as a drop-in attention replacement</div>
+      
+      <div class="contribution">97% quality retention vs dense attention at 3× inference speedup on GPT-2 Medium</div>
+      
+      <div class="contribution">Theoretical analysis showing routing capacity scales with hidden dimension, not sequence length</div>
+      
+    </div>
+    
+
+    
+    <div class="rank-rationale">&ldquo;Clean alternative to attention with strong theoretical grounding and practical speedups.&rdquo;</div>
+    
+
+    <div class="card-footer">
+      
+      <span class="cat-tag cat-cs-LG">cs.LG</span>
+      
+      
+      <span class="tag">architectures</span>
+      
+      <span class="tag">efficiency</span>
+      
+      <span class="tag">theory</span>
+      
+    </div>
+  </article>
+  
+  <article class="paper-card">
+    <div class="card-header">
+      <div class="rank-badge rank-other">
+        6
+      </div>
+      <div class="card-title">
+        <a href="https://arxiv.org/abs/2503.14006" target="_blank" rel="noopener">LongBench-v3: Evaluating Long-Context Understanding Beyond Retrieval</a>
+      </div>
+    </div>
+
+    <div class="card-authors">Yushi Bai, Xin Lv, Jiajie Zhang, Lei Hou, Juanzi Li</div>
+
+    <div class="card-summary">Introduces a new benchmark testing whether LLMs genuinely understand long contexts versus simply retrieving information. Features 1,200 multi-step reasoning tasks requiring synthesis across 10+ document sections, revealing that most models scoring >90% on needle-in-a-haystack drop to 40-55% on synthesis tasks.</div>
+
+    
+    <div class="contributions">
+      
+      <div class="contribution">Multi-hop synthesis tasks that cannot be solved by local retrieval patterns</div>
+      
+      <div class="contribution">Analysis showing retrieval-style performance poorly predicts reasoning-style performance</div>
+      
+      <div class="contribution">1,200 expert-annotated evaluation instances across 6 domains</div>
+      
+    </div>
+    
+
+    
+    <div class="rank-rationale">&ldquo;Exposes a critical gap in how we evaluate long-context models.&rdquo;</div>
+    
+
+    <div class="card-footer">
+      
+      <span class="cat-tag cat-cs-CL">cs.CL</span>
+      
+      
+      <span class="tag">evaluation</span>
+      
+      <span class="tag">nlp</span>
+      
+    </div>
+  </article>
+  
+  <article class="paper-card">
+    <div class="card-header">
+      <div class="rank-badge rank-other">
+        7
+      </div>
+      <div class="card-title">
+        <a href="https://arxiv.org/abs/2503.14007" target="_blank" rel="noopener">FlashConv: IO-Aware Depthwise Convolutions for Sub-Quadratic Sequence Modeling</a>
+      </div>
+    </div>
+
+    <div class="card-authors">Daniel Fu, Simran Arora, Christopher Ré</div>
+
+    <div class="card-summary">Develops fused CUDA kernels for long depthwise convolutions that eliminate HBM bottlenecks, making convolution-based sequence models 2.5× faster than FlashAttention-2 at 8k context. Demonstrates that with proper IO optimization, global convolutions can match SSM throughput while offering better parallelism during training.</div>
+
+    
+    <div class="contributions">
+      
+      <div class="contribution">IO-aware tiling strategy for depthwise convolutions up to 64k kernel size</div>
+      
+      <div class="contribution">2.5× wall-clock speedup over FlashAttention-2 at 8k sequence length</div>
+      
+      <div class="contribution">Open-source CUDA kernels compatible with PyTorch autograd</div>
+      
+    </div>
+    
+
+    
+    <div class="rank-rationale">&ldquo;Systems-level contribution that makes convolution-based models practically competitive.&rdquo;</div>
+    
+
+    <div class="card-footer">
+      
+      <span class="cat-tag cat-cs-LG">cs.LG</span>
+      
+      
+      <span class="tag">efficiency</span>
+      
+      <span class="tag">architectures</span>
+      
+      <span class="tag">training</span>
+      
+    </div>
+  </article>
+  
+  <article class="paper-card">
+    <div class="card-header">
+      <div class="rank-badge rank-other">
+        8
+      </div>
+      <div class="card-title">
+        <a href="https://arxiv.org/abs/2503.14008" target="_blank" rel="noopener">Constitutional Agents: Self-Correcting Tool Use via Principle-Guided Verification</a>
+      </div>
+    </div>
+
+    <div class="card-authors">Yoav Goldberg, Omer Levy, Timo Schick</div>
+
+    <div class="card-summary">Presents a framework where LLM agents verify their own tool-use actions against a set of learned constitutional principles before execution. The self-correction loop reduces harmful or incorrect API calls by 73% on the ToolBench benchmark while maintaining task completion rate.</div>
+
+    
+    <div class="contributions">
+      
+      <div class="contribution">Principle distillation from human feedback to generate tool-use constitutions</div>
+      
+      <div class="contribution">73% reduction in harmful API calls with <5% decrease in task success</div>
+      
+      <div class="contribution">Generalizes across unseen tools without per-tool fine-tuning</div>
+      
+    </div>
+    
+
+    
+    <div class="rank-rationale">&ldquo;Practical safety mechanism for LLM agents with minimal performance cost.&rdquo;</div>
+    
+
+    <div class="card-footer">
+      
+      <span class="cat-tag cat-cs-AI">cs.AI</span>
+      
+      <span class="cat-tag cat-cs-CL">cs.CL</span>
+      
+      
+      <span class="tag">agents</span>
+      
+      <span class="tag">safety</span>
+      
+      <span class="tag">nlp</span>
+      
+    </div>
+  </article>
+  
+  <article class="paper-card">
+    <div class="card-header">
+      <div class="rank-badge rank-other">
+        9
+      </div>
+      <div class="card-title">
+        <a href="https://arxiv.org/abs/2503.14009" target="_blank" rel="noopener">Geometric Tokenization: Learning Resolution-Invariant Vision Representations</a>
+      </div>
+    </div>
+
+    <div class="card-authors">Xinlei Chen, Kaiming He</div>
+
+    <div class="card-summary">Replaces fixed-grid patch tokenization with a learned geometric tokenizer that places tokens at image-adaptive locations. Tokens are positioned via predicted keypoints, enabling resolution-invariant representations. Achieves SOTA on detection and segmentation when transferring from 224px pretraining to high-resolution fine-tuning.</div>
+
+    
+    <div class="contributions">
+      
+      <div class="contribution">Differentiable keypoint-based tokenizer as a drop-in ViT patch replacement</div>
+      
+      <div class="contribution">Resolution-invariant pretraining that transfers to arbitrary input sizes without interpolation</div>
+      
+      <div class="contribution">+2.1 AP on COCO detection when transferring 224px→1024px vs standard ViT</div>
+      
+    </div>
+    
+
+    
+    <div class="rank-rationale">&ldquo;Elegant solution to a longstanding ViT limitation with immediate practical value.&rdquo;</div>
+    
+
+    <div class="card-footer">
+      
+      <span class="cat-tag cat-cs-CV">cs.CV</span>
+      
+      
+      <span class="tag">vision</span>
+      
+      <span class="tag">architectures</span>
+      
+    </div>
+  </article>
+  
+  <article class="paper-card">
+    <div class="card-header">
+      <div class="rank-badge rank-other">
+        10
+      </div>
+      <div class="card-title">
+        <a href="https://arxiv.org/abs/2503.14010" target="_blank" rel="noopener">Online DPO: Continuous Preference Optimization with Streaming Human Feedback</a>
+      </div>
+    </div>
+
+    <div class="card-authors">Rafael Rafailov, Archit Sharma, Chelsea Finn</div>
+
+    <div class="card-summary">Extends Direct Preference Optimization to the online setting where preferences arrive as a stream. Proposes a replay-weighted DPO objective that avoids catastrophic forgetting of earlier preferences while rapidly adapting to distribution shift. Matches PPO-based RLHF quality with 5× less compute.</div>
+
+    
+    <div class="contributions">
+      
+      <div class="contribution">Online DPO formulation with replay buffer and importance-weighted gradient updates</div>
+      
+      <div class="contribution">Theoretical convergence guarantees under non-stationary preference distributions</div>
+      
+      <div class="contribution">5× compute reduction vs PPO-RLHF at matched alignment quality on Anthropic-HH</div>
+      
+    </div>
+    
+
+    
+    <div class="rank-rationale">&ldquo;Makes DPO practical for continuous alignment with strong theoretical backing.&rdquo;</div>
+    
+
+    <div class="card-footer">
+      
+      <span class="cat-tag cat-cs-LG">cs.LG</span>
+      
+      <span class="cat-tag cat-cs-AI">cs.AI</span>
+      
+      
+      <span class="tag">training</span>
+      
+      <span class="tag">rl</span>
+      
+      <span class="tag">optimization</span>
+      
+    </div>
+  </article>
+  
+  <article class="paper-card">
+    <div class="card-header">
+      <div class="rank-badge rank-other">
+        11
+      </div>
+      <div class="card-title">
+        <a href="https://arxiv.org/abs/2503.14011" target="_blank" rel="noopener">NeuralGrasp: Category-Level 6-DoF Grasping via Implicit Shape Completion</a>
+      </div>
+    </div>
+
+    <div class="card-authors">Yuzhe Qin, Hao Su, Xiaolong Wang</div>
+
+    <div class="card-summary">Learns to predict 6-DoF grasps for novel object instances by first completing the object's implicit shape from partial point cloud observations. The two-stage approach outperforms direct grasp prediction methods by 15% on unseen categories in real-robot experiments.</div>
+
+    
+    <div class="contributions">
+      
+      <div class="contribution">Shape-conditioned grasp prediction that generalizes to unseen object categories</div>
+      
+      <div class="contribution">Implicit shape completion from single-view depth that captures geometry beyond visible surfaces</div>
+      
+      <div class="contribution">15% grasp success improvement on 10 unseen YCB categories in real-robot trials</div>
+      
+    </div>
+    
+
+    
+    <div class="rank-rationale">&ldquo;Strong real-world results on a challenging manipulation problem.&rdquo;</div>
+    
+
+    <div class="card-footer">
+      
+      <span class="cat-tag cat-cs-RO">cs.RO</span>
+      
+      <span class="cat-tag cat-cs-CV">cs.CV</span>
+      
+      
+      <span class="tag">robotics</span>
+      
+      <span class="tag">vision</span>
+      
+      <span class="tag">generative</span>
+      
+    </div>
+  </article>
+  
+  <article class="paper-card">
+    <div class="card-header">
+      <div class="rank-badge rank-other">
+        12
+      </div>
+      <div class="card-title">
+        <a href="https://arxiv.org/abs/2503.14012" target="_blank" rel="noopener">Sparse MoE Distillation: Compressing Mixture-of-Experts into Dense Students</a>
+      </div>
+    </div>
+
+    <div class="card-authors">Barret Zoph, Noam Shazeer, William Fedus</div>
+
+    <div class="card-summary">Proposes expert-aware distillation that transfers knowledge from sparse MoE teachers into dense student models. By routing-conditioned distillation, a 7B dense student captures 94% of a 56B MoE teacher's quality — significantly better than standard KD which only achieves 87%.</div>
+
+    
+    <div class="contributions">
+      
+      <div class="contribution">Routing-conditioned distillation loss that preserves expert specialization in dense models</div>
+      
+      <div class="contribution">94% quality retention when distilling 56B MoE → 7B dense (vs 87% standard KD)</div>
+      
+      <div class="contribution">Analysis of which expert specializations are hardest to compress</div>
+      
+    </div>
+    
+
+    
+    <div class="rank-rationale">&ldquo;Practical path to deploying MoE quality at dense-model cost.&rdquo;</div>
+    
+
+    <div class="card-footer">
+      
+      <span class="cat-tag cat-cs-LG">cs.LG</span>
+      
+      
+      <span class="tag">training</span>
+      
+      <span class="tag">efficiency</span>
+      
+      <span class="tag">architectures</span>
+      
+    </div>
+  </article>
+  
+  <article class="paper-card">
+    <div class="card-header">
+      <div class="rank-badge rank-other">
+        13
+      </div>
+      <div class="card-title">
+        <a href="https://arxiv.org/abs/2503.14013" target="_blank" rel="noopener">CausalVideo: Disentangling Motion and Appearance in Video Generation via Causal Inference</a>
+      </div>
+    </div>
+
+    <div class="card-authors">Lvmin Zhang, Maneesh Agrawala</div>
+
+    <div class="card-summary">Applies causal inference principles to disentangle motion dynamics from visual appearance in video diffusion models. The resulting model allows independent control over object motion trajectories and visual style, enabling applications like motion transfer and appearance editing that prior methods conflate.</div>
+
+    
+    <div class="contributions">
+      
+      <div class="contribution">Causal graph formulation separating motion and appearance latent variables in video diffusion</div>
+      
+      <div class="contribution">Independent control of motion trajectories and visual appearance at inference time</div>
+      
+      <div class="contribution">New benchmark for evaluating motion-appearance disentanglement with 500 annotated clips</div>
+      
+    </div>
+    
+
+    
+    <div class="rank-rationale">&ldquo;Principled approach to a major video generation challenge with practical applications.&rdquo;</div>
+    
+
+    <div class="card-footer">
+      
+      <span class="cat-tag cat-cs-CV">cs.CV</span>
+      
+      <span class="cat-tag cat-cs-LG">cs.LG</span>
+      
+      
+      <span class="tag">generative</span>
+      
+      <span class="tag">vision</span>
+      
+      <span class="tag">theory</span>
+      
+    </div>
+  </article>
+  
+  <article class="paper-card">
+    <div class="card-header">
+      <div class="rank-badge rank-other">
+        14
+      </div>
+      <div class="card-title">
+        <a href="https://arxiv.org/abs/2503.14014" target="_blank" rel="noopener">Context Distillation at Scale: Teaching Small LMs to Use 128K Contexts</a>
+      </div>
+    </div>
+
+    <div class="card-authors">Dacheng Li, Rulin Shao, Ari Holtzman</div>
+
+    <div class="card-summary">Demonstrates that small language models (1-3B) can effectively use 128K contexts when distilled from large long-context teachers. The key insight is progressive context extension during distillation, growing the context window 4× at each stage. A 3B student matches Llama-3-70B on document QA tasks with 128K inputs.</div>
+
+    
+    <div class="contributions">
+      
+      <div class="contribution">Progressive context extension schedule for distillation (4K→16K→64K→128K)</div>
+      
+      <div class="contribution">3B model matching 70B teacher quality on SCROLLS and QuALITY at 128K context</div>
+      
+      <div class="contribution">Analysis showing attention pattern inheritance is the key mechanism, not just output matching</div>
+      
+    </div>
+    
+
+    
+    <div class="rank-rationale">&ldquo;Enables long-context capabilities in deployable model sizes.&rdquo;</div>
+    
+
+    <div class="card-footer">
+      
+      <span class="cat-tag cat-cs-CL">cs.CL</span>
+      
+      
+      <span class="tag">nlp</span>
+      
+      <span class="tag">efficiency</span>
+      
+      <span class="tag">training</span>
+      
+    </div>
+  </article>
+  
+  <article class="paper-card">
+    <div class="card-header">
+      <div class="rank-badge rank-other">
+        15
+      </div>
+      <div class="card-title">
+        <a href="https://arxiv.org/abs/2503.14015" target="_blank" rel="noopener">AdaptiveGrad: Per-Layer Learning Rate Adaptation via Gradient Distribution Matching</a>
+      </div>
+    </div>
+
+    <div class="card-authors">Yang You, Jianwei Yang, Igor Babuschkin</div>
+
+    <div class="card-summary">Proposes an optimizer that automatically adapts per-layer learning rates by matching gradient magnitude distributions across layers. Eliminates the need for warmup schedules and learning rate tuning in Transformer training, achieving comparable performance to hand-tuned AdamW across scales from 125M to 13B.</div>
+
+    
+    <div class="contributions">
+      
+      <div class="contribution">Gradient distribution matching criterion for automatic per-layer LR adaptation</div>
+      
+      <div class="contribution">Eliminates warmup and LR tuning with no quality loss from 125M to 13B scale</div>
+      
+      <div class="contribution">Theoretical connection to natural gradient methods via Fisher information approximation</div>
+      
+    </div>
+    
+
+    
+    <div class="rank-rationale">&ldquo;Quality-of-life improvement for LLM training with solid theoretical grounding.&rdquo;</div>
+    
+
+    <div class="card-footer">
+      
+      <span class="cat-tag cat-cs-LG">cs.LG</span>
+      
+      
+      <span class="tag">optimization</span>
+      
+      <span class="tag">training</span>
+      
+      <span class="tag">theory</span>
+      
+    </div>
+  </article>
+  
+</main>
+
+<footer>
+  Generated by ML Digest &middot; Summaries by Claude Sonnet &middot; 2026-03-28 03:06 UTC
+</footer>
+
+</body>
+</html>
