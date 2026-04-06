@@ -101,6 +101,8 @@ class PaperSummary:
     summary: str          # 2-4 sentence summary
     contributions: list[str]  # Key contributions as bullet points
     relevance_tags: list[str] # e.g. ["architectures", "training", "rl", "nlp"]
+    affiliations: list[str] = None  # e.g. ["MIT", "Google DeepMind"]
+    abstract: str = ""        # original arxiv abstract
     rank: Optional[int] = None
     rank_rationale: Optional[str] = None
 
@@ -149,13 +151,15 @@ For each paper:
 1. A concise 3-5 sentence summary capturing the method, key results, and significance.
 2. A list of key contributions (1-4 items, each a single sentence) drawn from the actual experiments and results.
 3. Relevance tags from: [architectures, training, optimization, nlp, vision, robotics, rl, generative, theory, efficiency, safety, multimodal, data, evaluation, agents, other].
+4. Author affiliations — extract the unique university or organization names from the paper header (e.g. ["MIT", "Google DeepMind"]). If not clearly stated, return an empty list.
 
 Respond with a JSON array. Each element:
 {
   "arxiv_id": "...",
   "summary": "...",
   "contributions": ["...", "..."],
-  "relevance_tags": ["...", "..."]
+  "relevance_tags": ["...", "..."],
+  "affiliations": ["...", "..."]
 }
 
 Be precise and technical. Highlight specific quantitative results where available.
@@ -208,7 +212,7 @@ def cull_abstracts_tournament(
             f"Title: {p['title']}\n"
             f"Authors: {', '.join(p['authors'][:5])}{'...' if len(p['authors']) > 5 else ''}\n"
             f"Categories: {', '.join(p['categories'])}\n"
-            f"Abstract: {p['abstract']}"
+            f"Abstract: {p['abstract'][:250] + ' ... ' + p['abstract'][-250:] if len(p['abstract']) > 500 else p['abstract']}"
             for p in batch
         )
 
@@ -290,6 +294,7 @@ def summarize_all_abstracts(papers: list[dict], chunk_size: int = 20) -> list[Pa
                 summary=s.get("summary", ""),
                 contributions=s.get("contributions", []),
                 relevance_tags=s.get("relevance_tags", []),
+                abstract=orig.get("abstract", ""),
             )
             all_summaries.append(summary)
 
@@ -349,6 +354,7 @@ def summarize_with_full_text(
                         summary=p.get("abstract", ""),
                         contributions=[],
                         relevance_tags=[],
+                        abstract=p.get("abstract", ""),
                     ))
                 continue
 
@@ -364,6 +370,8 @@ def summarize_with_full_text(
                     summary=r.get("summary", ""),
                     contributions=r.get("contributions", []),
                     relevance_tags=r.get("relevance_tags", []),
+                    affiliations=r.get("affiliations", []),
+                    abstract=orig.get("abstract", ""),
                 ))
 
     # Fallback: summarize papers without full text from abstracts

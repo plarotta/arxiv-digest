@@ -96,8 +96,9 @@ def main():
 
     # ── Step 2: Tournament cull ───────────────────────────────
     shortlist_n = max(args.shortlist, args.top)
-    # Uses the smaller 8B model for culling, which has higher TPM limits
-    batch_size = 50
+    # Uses the smaller 8B model for culling — batch size kept small to stay
+    # under Groq free tier's 6k TPM limit (~400 tokens per paper)
+    batch_size = 5
     num_batches = max(1, (len(papers_dicts) + batch_size - 1) // batch_size)
     survivors_per_batch = max(1, round(shortlist_n / num_batches))
 

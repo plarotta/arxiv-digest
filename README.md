@@ -6,18 +6,51 @@ Daily top-15 ML paper digest from arxiv. Fetches new submissions, selects candid
 
 The pipeline uses a tournament cull + full-text approach to select the best papers from each day's arxiv submissions:
 
+```text
+  ┌─────────────────────────────────────┐
+  │  arxiv RSS          ~1,400 papers   │  5 category feeds
+  └──────────────┬──────────────────────┘
+                 │
+          filter replacements              no LLM — just metadata parsing
+                 │
+  ┌──────────────▼──────────────────────┐
+  │  New + Cross-listed   ~860 papers   │  ~37% dropped (replace / replace-cross)
+  └──────────────┬──────────────────────┘
+                 │
+       tournament cull (8B LLM)            sends per paper: title + authors
+         batches of 50, ~10 calls            + categories + abstract (~400 tok)
+                 │
+  ┌──────────────▼──────────────────────┐
+  │  Shortlisted            ~60 papers  │  top ~6 per batch survive
+  └──────────────┬──────────────────────┘
+                 │
+        download PDFs + extract text       no LLM — PyMuPDF extraction
+                 │
+  ┌──────────────▼──────────────────────┐
+  │  Full text available    ~60 papers  │  stripped + truncated to ~25k chars
+  └──────────────┬──────────────────────┘
+                 │
+       summarize (70B LLM)                 sends per paper: title + authors
+         batches of 5, ~12 calls             + categories + full text (~6k tok)
+                 │
+  ┌──────────────▼──────────────────────┐
+  │  Summarized             ~60 papers  │  3-5 sentence summary + contributions
+  └──────────────┬──────────────────────┘
+                 │
+          final ranking (1 call)           sends per paper: title + tags
+                 │                           + summary + contributions (~150 tok)
+  ┌──────────────▼──────────────────────┐
+  │  Selected                15 papers  │  ranked by significance → static HTML
+  └─────────────────────────────────────┘
 ```
-Step 1: arxiv RSS → fetch ~500 papers
-Step 2: Tournament cull → pick top ~60 from raw abstracts (5 API calls)
-Step 3: Download PDFs for 60 survivors
-Step 4: Full-text summarize 60 papers (12 API calls)
-Step 5: Final rank → top 15 (1 API call)
-Step 6: Generate static HTML
-```
+
+### Step 1 — Fetch & Pre-filter
+
+RSS feeds for 5 categories are fetched. Each entry's `Announce Type` is parsed from the abstract metadata — papers marked `replace` or `replace-cross` (updated versions of old papers, ~37% of RSS volume) are dropped before any LLM calls. The `arXiv:... Announce Type: ... Abstract:` metadata prefix is also stripped from abstracts to avoid wasting LLM tokens.
 
 ### Step 2 — Tournament Abstract Cull
 
-Papers are shuffled (to avoid positional bias), split into batches of ~100, and each batch is sent to the LLM with raw abstracts. The model picks the top ~12 from each batch based on novelty, empirical strength, and subfield diversity. No summarization happens here — just selection. This replaces the old approach of LLM-summarizing all 500 papers (which wasted 25+ API calls on papers that were immediately discarded).
+Remaining papers are shuffled (to avoid positional bias), split into batches of 50, and each batch is sent to a small LLM (8B model) with raw abstracts. The model picks the top ~6 from each batch based on novelty, empirical strength, and subfield diversity. No summarization happens here — just selection.
 
 ### Steps 3-4 — Full-Text Summarization
 
@@ -85,7 +118,7 @@ uv run python run_pipeline.py --from-cache .cache/2026-03-28_fetched.json
 
 | Task | Provider | Model | Notes |
 |------|----------|-------|-------|
-| Tournament cull | Groq | Llama 3.3 70B | Picks top candidates from raw abstracts |
+| Tournament cull | Groq | Llama 3.1 8B | Small model for high-volume culling (higher TPM limits) |
 | Summarization | Groq | Llama 3.3 70B | Full-text and abstract-based summaries |
 | Final ranking | Groq (default) | Llama 3.3 70B | Can use `--rank-provider gemini` for Gemini 2.5 Pro |
 

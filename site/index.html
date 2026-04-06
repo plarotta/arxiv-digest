@@ -1,0 +1,1105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ML Digest — April 06, 2026</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0c0c0e;
+    --surface: #141418;
+    --surface-hover: #1a1a20;
+    --border: #232329;
+    --border-accent: #2d2d36;
+    --text: #e8e6e3;
+    --text-secondary: #8a8891;
+    --text-dim: #5c5a63;
+    --accent: #c4a7ff;
+    --accent-muted: #7c5cbf;
+    --tag-bg: #1e1b2e;
+    --tag-text: #b39ddb;
+    --rank-gold: #f0c674;
+    --rank-silver: #a8b5c8;
+    --rank-bronze: #c49a6c;
+    --rank-default: #5c5a63;
+    --cat-lg: #6ec6ff;
+    --cat-cl: #aed581;
+    --cat-ai: #ffab91;
+    --cat-cv: #ce93d8;
+    --cat-ro: #80deea;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Sans', -apple-system, sans-serif;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .noise-overlay {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 9999;
+    opacity: 0.025;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  header {
+    padding: 3rem 2rem 2rem;
+    max-width: 900px;
+    margin: 0 auto;
+    border-bottom: 1px solid var(--border);
+  }
+
+  header h1 {
+    font-family: 'DM Serif Display', Georgia, serif;
+    font-size: 2.4rem;
+    font-weight: 400;
+    letter-spacing: -0.02em;
+    color: var(--text);
+    margin-bottom: 0.4rem;
+  }
+
+  header h1 span.accent { color: var(--accent); }
+
+  .subtitle {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.82rem;
+    color: var(--text-dim);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .meta-bar {
+    display: flex;
+    gap: 1.5rem;
+    margin-top: 1rem;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    font-family: 'IBM Plex Mono', monospace;
+  }
+
+  .meta-bar .stat { display: flex; align-items: center; gap: 0.35rem; }
+  .meta-bar .dot { color: var(--accent-muted); }
+
+  main {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 1.5rem 2rem 4rem;
+  }
+
+  .paper-card {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.5rem 1.6rem;
+    margin-bottom: 1rem;
+    background: var(--surface);
+    transition: border-color 0.2s, background 0.2s;
+    position: relative;
+  }
+
+  .paper-card:hover {
+    border-color: var(--border-accent);
+    background: var(--surface-hover);
+  }
+
+  .card-header {
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start;
+    margin-bottom: 0.75rem;
+  }
+
+  .rank-badge {
+    flex-shrink: 0;
+    width: 2.2rem;
+    height: 2.2rem;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 600;
+    font-size: 0.85rem;
+    border: 1px solid;
+  }
+
+  .rank-1 { color: var(--rank-gold); border-color: var(--rank-gold); background: rgba(240,198,116,0.08); }
+  .rank-2 { color: var(--rank-silver); border-color: var(--rank-silver); background: rgba(168,181,200,0.06); }
+  .rank-3 { color: var(--rank-bronze); border-color: var(--rank-bronze); background: rgba(196,154,108,0.06); }
+  .rank-other { color: var(--rank-default); border-color: var(--border); background: transparent; }
+
+  .card-title {
+    font-family: 'DM Serif Display', Georgia, serif;
+    font-size: 1.15rem;
+    font-weight: 400;
+    line-height: 1.35;
+    color: var(--text);
+  }
+
+  .card-title a {
+    color: inherit;
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: border-color 0.2s;
+  }
+
+  .card-title a:hover { border-bottom-color: var(--accent); }
+
+  .card-authors {
+    font-size: 0.78rem;
+    color: var(--text-dim);
+    margin: 0.25rem 0 0.6rem;
+    padding-left: 3.2rem;
+  }
+
+  .card-summary {
+    font-size: 0.9rem;
+    line-height: 1.65;
+    color: var(--text-secondary);
+    margin-bottom: 0.75rem;
+    padding-left: 3.2rem;
+  }
+
+  .contributions {
+    padding-left: 3.2rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .contribution {
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    padding: 0.3rem 0 0.3rem 1rem;
+    border-left: 2px solid var(--border-accent);
+    margin-bottom: 0.3rem;
+  }
+
+  .card-footer {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    padding-left: 3.2rem;
+    align-items: center;
+  }
+
+  .tag {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.68rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    background: var(--tag-bg);
+    color: var(--tag-text);
+    letter-spacing: 0.02em;
+  }
+
+  .cat-tag {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.68rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    font-weight: 500;
+  }
+
+  .cat-cs-LG { background: rgba(110,198,255,0.1); color: var(--cat-lg); }
+  .cat-cs-CL { background: rgba(174,213,129,0.1); color: var(--cat-cl); }
+  .cat-cs-AI { background: rgba(255,171,145,0.1); color: var(--cat-ai); }
+  .cat-cs-CV { background: rgba(206,147,216,0.1); color: var(--cat-cv); }
+  .cat-cs-RO { background: rgba(128,222,234,0.1); color: var(--cat-ro); }
+
+  .affiliations {
+    color: var(--text-dim);
+    font-style: italic;
+  }
+
+  .card-abstract {
+    font-size: 0.9rem;
+    line-height: 1.65;
+    color: var(--text-secondary);
+    margin-bottom: 0.75rem;
+    padding-left: 3.2rem;
+  }
+
+  .summary-toggle {
+    padding-left: 3.2rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .summary-toggle button {
+    background: var(--tag-bg);
+    color: var(--tag-text);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 0.3rem 0.7rem;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.72rem;
+    cursor: pointer;
+    letter-spacing: 0.02em;
+    transition: background 0.2s, border-color 0.2s;
+  }
+
+  .summary-toggle button:hover {
+    background: var(--surface-hover);
+    border-color: var(--border-accent);
+  }
+
+  .ai-summary {
+    display: none;
+    padding-left: 3.2rem;
+    margin-bottom: 0.75rem;
+    border-left: 2px solid var(--accent-muted);
+    margin-left: 3.2rem;
+    padding-left: 1rem;
+  }
+
+  .ai-summary.open { display: block; }
+
+  .ai-summary-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.68rem;
+    color: var(--accent-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 0.4rem;
+  }
+
+  .rank-rationale {
+    font-size: 0.78rem;
+    color: var(--text-dim);
+    font-style: italic;
+    padding-left: 3.2rem;
+    margin-bottom: 0.5rem;
+  }
+
+  footer {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 2rem;
+    border-top: 1px solid var(--border);
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    font-family: 'IBM Plex Mono', monospace;
+    text-align: center;
+  }
+
+  @media (max-width: 640px) {
+    header { padding: 2rem 1.2rem 1.5rem; }
+    main { padding: 1rem 1.2rem 3rem; }
+    header h1 { font-size: 1.8rem; }
+    .card-authors, .card-abstract, .card-summary, .contributions, .card-footer, .rank-rationale, .summary-toggle {
+      padding-left: 0;
+    }
+    .ai-summary { margin-left: 0; }
+    .card-header { flex-direction: column; gap: 0.5rem; }
+    .rank-badge { width: 1.8rem; height: 1.8rem; font-size: 0.75rem; }
+  }
+</style>
+</head>
+<body>
+<div class="noise-overlay"></div>
+
+<header>
+  <h1>ML <span class="accent">Digest</span></h1>
+  <p class="subtitle">Top papers from arxiv &middot; April 06, 2026</p>
+  <div class="meta-bar">
+    <div class="stat"><span class="dot">&bull;</span> 287 papers scanned</div>
+    <div class="stat"><span class="dot">&bull;</span> 15 selected</div>
+    <div class="stat"><span class="dot">&bull;</span> cs.LG, cs.CL, cs.AI, cs.CV, cs.RO</div>
+  </div>
+</header>
+
+<main>
+  
+  <article class="paper-card">
+    <div class="card-header">
+      <div class="rank-badge rank-1">
+        1
+      </div>
+      <div class="card-title">
+        <a href="https://arxiv.org/abs/2401.10000" target="_blank" rel="noopener">Sample Paper #1: A Novel Approach to Something</a>
+      </div>
+    </div>
+
+    <div class="card-authors">Alice, Bob, Carol <span class="affiliations">— MIT, Google DeepMind</span></div>
+
+    
+    <div class="card-abstract">We present a novel approach to efficient neural network design that leverages structured sparsity patterns inspired by biological neural circuits. Our method introduces adaptive connectivity masks that dynamically prune and regrow connections during training, maintaining model expressiveness while reducing computational overhead. Experiments on ImageNet, COCO, and ADE20K demonstrate that our approach achieves competitive accuracy with 40% fewer FLOPs compared to dense baselines.</div>
+    
+
+    
+    <div class="summary-toggle">
+      <button onclick="this.parentElement.nextElementSibling.classList.toggle('open'); this.textContent = this.textContent === 'Show AI summary' ? 'Hide AI summary' : 'Show AI summary';">Show AI summary</button>
+    </div>
+    <div class="ai-summary">
+      <div class="ai-summary-label">AI Summary</div>
+      <div class="card-summary">This paper introduces a new method that achieves state-of-the-art results on common benchmarks while requiring significantly less compute.</div>
+      
+      <div class="contributions">
+        
+        <div class="contribution">A new architecture component that reduces FLOPs by 40%</div>
+        
+        <div class="contribution">SOTA results on ImageNet, COCO, and ADE20K</div>
+        
+      </div>
+      
+      
+      <div class="rank-rationale">&ldquo;Novel architecture with strong empirical validation.&rdquo;</div>
+      
+    </div>
+    
+
+    <div class="card-footer">
+      
+      <span class="cat-tag cat-cs-LG">cs.LG</span>
+      
+      <span class="cat-tag cat-cs-AI">cs.AI</span>
+      
+      
+      <span class="tag">architectures</span>
+      
+      <span class="tag">efficiency</span>
+      
+    </div>
+  </article>
+  
+  <article class="paper-card">
+    <div class="card-header">
+      <div class="rank-badge rank-2">
+        2
+      </div>
+      <div class="card-title">
+        <a href="https://arxiv.org/abs/2401.10001" target="_blank" rel="noopener">Sample Paper #2: A Novel Approach to Something</a>
+      </div>
+    </div>
+
+    <div class="card-authors">Alice, Bob, Carol <span class="affiliations">— MIT, Google DeepMind</span></div>
+
+    
+    <div class="card-abstract">We present a novel approach to efficient neural network design that leverages structured sparsity patterns inspired by biological neural circuits. Our method introduces adaptive connectivity masks that dynamically prune and regrow connections during training, maintaining model expressiveness while reducing computational overhead. Experiments on ImageNet, COCO, and ADE20K demonstrate that our approach achieves competitive accuracy with 40% fewer FLOPs compared to dense baselines.</div>
+    
+
+    
+    <div class="summary-toggle">
+      <button onclick="this.parentElement.nextElementSibling.classList.toggle('open'); this.textContent = this.textContent === 'Show AI summary' ? 'Hide AI summary' : 'Show AI summary';">Show AI summary</button>
+    </div>
+    <div class="ai-summary">
+      <div class="ai-summary-label">AI Summary</div>
+      <div class="card-summary">This paper introduces a new method that achieves state-of-the-art results on common benchmarks while requiring significantly less compute.</div>
+      
+      <div class="contributions">
+        
+        <div class="contribution">A new architecture component that reduces FLOPs by 40%</div>
+        
+        <div class="contribution">SOTA results on ImageNet, COCO, and ADE20K</div>
+        
+      </div>
+      
+      
+      <div class="rank-rationale">&ldquo;Novel architecture with strong empirical validation.&rdquo;</div>
+      
+    </div>
+    
+
+    <div class="card-footer">
+      
+      <span class="cat-tag cat-cs-LG">cs.LG</span>
+      
+      <span class="cat-tag cat-cs-AI">cs.AI</span>
+      
+      
+      <span class="tag">architectures</span>
+      
+      <span class="tag">efficiency</span>
+      
+    </div>
+  </article>
+  
+  <article class="paper-card">
+    <div class="card-header">
+      <div class="rank-badge rank-3">
+        3
+      </div>
+      <div class="card-title">
+        <a href="https://arxiv.org/abs/2401.10002" target="_blank" rel="noopener">Sample Paper #3: A Novel Approach to Something</a>
+      </div>
+    </div>
+
+    <div class="card-authors">Alice, Bob, Carol <span class="affiliations">— MIT, Google DeepMind</span></div>
+
+    
+    <div class="card-abstract">We present a novel approach to efficient neural network design that leverages structured sparsity patterns inspired by biological neural circuits. Our method introduces adaptive connectivity masks that dynamically prune and regrow connections during training, maintaining model expressiveness while reducing computational overhead. Experiments on ImageNet, COCO, and ADE20K demonstrate that our approach achieves competitive accuracy with 40% fewer FLOPs compared to dense baselines.</div>
+    
+
+    
+    <div class="summary-toggle">
+      <button onclick="this.parentElement.nextElementSibling.classList.toggle('open'); this.textContent = this.textContent === 'Show AI summary' ? 'Hide AI summary' : 'Show AI summary';">Show AI summary</button>
+    </div>
+    <div class="ai-summary">
+      <div class="ai-summary-label">AI Summary</div>
+      <div class="card-summary">This paper introduces a new method that achieves state-of-the-art results on common benchmarks while requiring significantly less compute.</div>
+      
+      <div class="contributions">
+        
+        <div class="contribution">A new architecture component that reduces FLOPs by 40%</div>
+        
+        <div class="contribution">SOTA results on ImageNet, COCO, and ADE20K</div>
+        
+      </div>
+      
+      
+      <div class="rank-rationale">&ldquo;Novel architecture with strong empirical validation.&rdquo;</div>
+      
+    </div>
+    
+
+    <div class="card-footer">
+      
+      <span class="cat-tag cat-cs-LG">cs.LG</span>
+      
+      <span class="cat-tag cat-cs-AI">cs.AI</span>
+      
+      
+      <span class="tag">architectures</span>
+      
+      <span class="tag">efficiency</span>
+      
+    </div>
+  </article>
+  
+  <article class="paper-card">
+    <div class="card-header">
+      <div class="rank-badge rank-other">
+        4
+      </div>
+      <div class="card-title">
+        <a href="https://arxiv.org/abs/2401.10003" target="_blank" rel="noopener">Sample Paper #4: A Novel Approach to Something</a>
+      </div>
+    </div>
+
+    <div class="card-authors">Alice, Bob, Carol <span class="affiliations">— MIT, Google DeepMind</span></div>
+
+    
+    <div class="card-abstract">We present a novel approach to efficient neural network design that leverages structured sparsity patterns inspired by biological neural circuits. Our method introduces adaptive connectivity masks that dynamically prune and regrow connections during training, maintaining model expressiveness while reducing computational overhead. Experiments on ImageNet, COCO, and ADE20K demonstrate that our approach achieves competitive accuracy with 40% fewer FLOPs compared to dense baselines.</div>
+    
+
+    
+    <div class="summary-toggle">
+      <button onclick="this.parentElement.nextElementSibling.classList.toggle('open'); this.textContent = this.textContent === 'Show AI summary' ? 'Hide AI summary' : 'Show AI summary';">Show AI summary</button>
+    </div>
+    <div class="ai-summary">
+      <div class="ai-summary-label">AI Summary</div>
+      <div class="card-summary">This paper introduces a new method that achieves state-of-the-art results on common benchmarks while requiring significantly less compute.</div>
+      
+      <div class="contributions">
+        
+        <div class="contribution">A new architecture component that reduces FLOPs by 40%</div>
+        
+        <div class="contribution">SOTA results on ImageNet, COCO, and ADE20K</div>
+        
+      </div>
+      
+      
+      <div class="rank-rationale">&ldquo;Novel architecture with strong empirical validation.&rdquo;</div>
+      
+    </div>
+    
+
+    <div class="card-footer">
+      
+      <span class="cat-tag cat-cs-LG">cs.LG</span>
+      
+      <span class="cat-tag cat-cs-AI">cs.AI</span>
+      
+      
+      <span class="tag">architectures</span>
+      
+      <span class="tag">efficiency</span>
+      
+    </div>
+  </article>
+  
+  <article class="paper-card">
+    <div class="card-header">
+      <div class="rank-badge rank-other">
+        5
+      </div>
+      <div class="card-title">
+        <a href="https://arxiv.org/abs/2401.10004" target="_blank" rel="noopener">Sample Paper #5: A Novel Approach to Something</a>
+      </div>
+    </div>
+
+    <div class="card-authors">Alice, Bob, Carol <span class="affiliations">— MIT, Google DeepMind</span></div>
+
+    
+    <div class="card-abstract">We present a novel approach to efficient neural network design that leverages structured sparsity patterns inspired by biological neural circuits. Our method introduces adaptive connectivity masks that dynamically prune and regrow connections during training, maintaining model expressiveness while reducing computational overhead. Experiments on ImageNet, COCO, and ADE20K demonstrate that our approach achieves competitive accuracy with 40% fewer FLOPs compared to dense baselines.</div>
+    
+
+    
+    <div class="summary-toggle">
+      <button onclick="this.parentElement.nextElementSibling.classList.toggle('open'); this.textContent = this.textContent === 'Show AI summary' ? 'Hide AI summary' : 'Show AI summary';">Show AI summary</button>
+    </div>
+    <div class="ai-summary">
+      <div class="ai-summary-label">AI Summary</div>
+      <div class="card-summary">This paper introduces a new method that achieves state-of-the-art results on common benchmarks while requiring significantly less compute.</div>
+      
+      <div class="contributions">
+        
+        <div class="contribution">A new architecture component that reduces FLOPs by 40%</div>
+        
+        <div class="contribution">SOTA results on ImageNet, COCO, and ADE20K</div>
+        
+      </div>
+      
+      
+      <div class="rank-rationale">&ldquo;Novel architecture with strong empirical validation.&rdquo;</div>
+      
+    </div>
+    
+
+    <div class="card-footer">
+      
+      <span class="cat-tag cat-cs-LG">cs.LG</span>
+      
+      <span class="cat-tag cat-cs-AI">cs.AI</span>
+      
+      
+      <span class="tag">architectures</span>
+      
+      <span class="tag">efficiency</span>
+      
+    </div>
+  </article>
+  
+  <article class="paper-card">
+    <div class="card-header">
+      <div class="rank-badge rank-other">
+        6
+      </div>
+      <div class="card-title">
+        <a href="https://arxiv.org/abs/2401.10005" target="_blank" rel="noopener">Sample Paper #6: A Novel Approach to Something</a>
+      </div>
+    </div>
+
+    <div class="card-authors">Alice, Bob, Carol <span class="affiliations">— MIT, Google DeepMind</span></div>
+
+    
+    <div class="card-abstract">We present a novel approach to efficient neural network design that leverages structured sparsity patterns inspired by biological neural circuits. Our method introduces adaptive connectivity masks that dynamically prune and regrow connections during training, maintaining model expressiveness while reducing computational overhead. Experiments on ImageNet, COCO, and ADE20K demonstrate that our approach achieves competitive accuracy with 40% fewer FLOPs compared to dense baselines.</div>
+    
+
+    
+    <div class="summary-toggle">
+      <button onclick="this.parentElement.nextElementSibling.classList.toggle('open'); this.textContent = this.textContent === 'Show AI summary' ? 'Hide AI summary' : 'Show AI summary';">Show AI summary</button>
+    </div>
+    <div class="ai-summary">
+      <div class="ai-summary-label">AI Summary</div>
+      <div class="card-summary">This paper introduces a new method that achieves state-of-the-art results on common benchmarks while requiring significantly less compute.</div>
+      
+      <div class="contributions">
+        
+        <div class="contribution">A new architecture component that reduces FLOPs by 40%</div>
+        
+        <div class="contribution">SOTA results on ImageNet, COCO, and ADE20K</div>
+        
+      </div>
+      
+      
+      <div class="rank-rationale">&ldquo;Novel architecture with strong empirical validation.&rdquo;</div>
+      
+    </div>
+    
+
+    <div class="card-footer">
+      
+      <span class="cat-tag cat-cs-LG">cs.LG</span>
+      
+      <span class="cat-tag cat-cs-AI">cs.AI</span>
+      
+      
+      <span class="tag">architectures</span>
+      
+      <span class="tag">efficiency</span>
+      
+    </div>
+  </article>
+  
+  <article class="paper-card">
+    <div class="card-header">
+      <div class="rank-badge rank-other">
+        7
+      </div>
+      <div class="card-title">
+        <a href="https://arxiv.org/abs/2401.10006" target="_blank" rel="noopener">Sample Paper #7: A Novel Approach to Something</a>
+      </div>
+    </div>
+
+    <div class="card-authors">Alice, Bob, Carol <span class="affiliations">— MIT, Google DeepMind</span></div>
+
+    
+    <div class="card-abstract">We present a novel approach to efficient neural network design that leverages structured sparsity patterns inspired by biological neural circuits. Our method introduces adaptive connectivity masks that dynamically prune and regrow connections during training, maintaining model expressiveness while reducing computational overhead. Experiments on ImageNet, COCO, and ADE20K demonstrate that our approach achieves competitive accuracy with 40% fewer FLOPs compared to dense baselines.</div>
+    
+
+    
+    <div class="summary-toggle">
+      <button onclick="this.parentElement.nextElementSibling.classList.toggle('open'); this.textContent = this.textContent === 'Show AI summary' ? 'Hide AI summary' : 'Show AI summary';">Show AI summary</button>
+    </div>
+    <div class="ai-summary">
+      <div class="ai-summary-label">AI Summary</div>
+      <div class="card-summary">This paper introduces a new method that achieves state-of-the-art results on common benchmarks while requiring significantly less compute.</div>
+      
+      <div class="contributions">
+        
+        <div class="contribution">A new architecture component that reduces FLOPs by 40%</div>
+        
+        <div class="contribution">SOTA results on ImageNet, COCO, and ADE20K</div>
+        
+      </div>
+      
+      
+      <div class="rank-rationale">&ldquo;Novel architecture with strong empirical validation.&rdquo;</div>
+      
+    </div>
+    
+
+    <div class="card-footer">
+      
+      <span class="cat-tag cat-cs-LG">cs.LG</span>
+      
+      <span class="cat-tag cat-cs-AI">cs.AI</span>
+      
+      
+      <span class="tag">architectures</span>
+      
+      <span class="tag">efficiency</span>
+      
+    </div>
+  </article>
+  
+  <article class="paper-card">
+    <div class="card-header">
+      <div class="rank-badge rank-other">
+        8
+      </div>
+      <div class="card-title">
+        <a href="https://arxiv.org/abs/2401.10007" target="_blank" rel="noopener">Sample Paper #8: A Novel Approach to Something</a>
+      </div>
+    </div>
+
+    <div class="card-authors">Alice, Bob, Carol <span class="affiliations">— MIT, Google DeepMind</span></div>
+
+    
+    <div class="card-abstract">We present a novel approach to efficient neural network design that leverages structured sparsity patterns inspired by biological neural circuits. Our method introduces adaptive connectivity masks that dynamically prune and regrow connections during training, maintaining model expressiveness while reducing computational overhead. Experiments on ImageNet, COCO, and ADE20K demonstrate that our approach achieves competitive accuracy with 40% fewer FLOPs compared to dense baselines.</div>
+    
+
+    
+    <div class="summary-toggle">
+      <button onclick="this.parentElement.nextElementSibling.classList.toggle('open'); this.textContent = this.textContent === 'Show AI summary' ? 'Hide AI summary' : 'Show AI summary';">Show AI summary</button>
+    </div>
+    <div class="ai-summary">
+      <div class="ai-summary-label">AI Summary</div>
+      <div class="card-summary">This paper introduces a new method that achieves state-of-the-art results on common benchmarks while requiring significantly less compute.</div>
+      
+      <div class="contributions">
+        
+        <div class="contribution">A new architecture component that reduces FLOPs by 40%</div>
+        
+        <div class="contribution">SOTA results on ImageNet, COCO, and ADE20K</div>
+        
+      </div>
+      
+      
+      <div class="rank-rationale">&ldquo;Novel architecture with strong empirical validation.&rdquo;</div>
+      
+    </div>
+    
+
+    <div class="card-footer">
+      
+      <span class="cat-tag cat-cs-LG">cs.LG</span>
+      
+      <span class="cat-tag cat-cs-AI">cs.AI</span>
+      
+      
+      <span class="tag">architectures</span>
+      
+      <span class="tag">efficiency</span>
+      
+    </div>
+  </article>
+  
+  <article class="paper-card">
+    <div class="card-header">
+      <div class="rank-badge rank-other">
+        9
+      </div>
+      <div class="card-title">
+        <a href="https://arxiv.org/abs/2401.10008" target="_blank" rel="noopener">Sample Paper #9: A Novel Approach to Something</a>
+      </div>
+    </div>
+
+    <div class="card-authors">Alice, Bob, Carol <span class="affiliations">— MIT, Google DeepMind</span></div>
+
+    
+    <div class="card-abstract">We present a novel approach to efficient neural network design that leverages structured sparsity patterns inspired by biological neural circuits. Our method introduces adaptive connectivity masks that dynamically prune and regrow connections during training, maintaining model expressiveness while reducing computational overhead. Experiments on ImageNet, COCO, and ADE20K demonstrate that our approach achieves competitive accuracy with 40% fewer FLOPs compared to dense baselines.</div>
+    
+
+    
+    <div class="summary-toggle">
+      <button onclick="this.parentElement.nextElementSibling.classList.toggle('open'); this.textContent = this.textContent === 'Show AI summary' ? 'Hide AI summary' : 'Show AI summary';">Show AI summary</button>
+    </div>
+    <div class="ai-summary">
+      <div class="ai-summary-label">AI Summary</div>
+      <div class="card-summary">This paper introduces a new method that achieves state-of-the-art results on common benchmarks while requiring significantly less compute.</div>
+      
+      <div class="contributions">
+        
+        <div class="contribution">A new architecture component that reduces FLOPs by 40%</div>
+        
+        <div class="contribution">SOTA results on ImageNet, COCO, and ADE20K</div>
+        
+      </div>
+      
+      
+      <div class="rank-rationale">&ldquo;Novel architecture with strong empirical validation.&rdquo;</div>
+      
+    </div>
+    
+
+    <div class="card-footer">
+      
+      <span class="cat-tag cat-cs-LG">cs.LG</span>
+      
+      <span class="cat-tag cat-cs-AI">cs.AI</span>
+      
+      
+      <span class="tag">architectures</span>
+      
+      <span class="tag">efficiency</span>
+      
+    </div>
+  </article>
+  
+  <article class="paper-card">
+    <div class="card-header">
+      <div class="rank-badge rank-other">
+        10
+      </div>
+      <div class="card-title">
+        <a href="https://arxiv.org/abs/2401.10009" target="_blank" rel="noopener">Sample Paper #10: A Novel Approach to Something</a>
+      </div>
+    </div>
+
+    <div class="card-authors">Alice, Bob, Carol <span class="affiliations">— MIT, Google DeepMind</span></div>
+
+    
+    <div class="card-abstract">We present a novel approach to efficient neural network design that leverages structured sparsity patterns inspired by biological neural circuits. Our method introduces adaptive connectivity masks that dynamically prune and regrow connections during training, maintaining model expressiveness while reducing computational overhead. Experiments on ImageNet, COCO, and ADE20K demonstrate that our approach achieves competitive accuracy with 40% fewer FLOPs compared to dense baselines.</div>
+    
+
+    
+    <div class="summary-toggle">
+      <button onclick="this.parentElement.nextElementSibling.classList.toggle('open'); this.textContent = this.textContent === 'Show AI summary' ? 'Hide AI summary' : 'Show AI summary';">Show AI summary</button>
+    </div>
+    <div class="ai-summary">
+      <div class="ai-summary-label">AI Summary</div>
+      <div class="card-summary">This paper introduces a new method that achieves state-of-the-art results on common benchmarks while requiring significantly less compute.</div>
+      
+      <div class="contributions">
+        
+        <div class="contribution">A new architecture component that reduces FLOPs by 40%</div>
+        
+        <div class="contribution">SOTA results on ImageNet, COCO, and ADE20K</div>
+        
+      </div>
+      
+      
+      <div class="rank-rationale">&ldquo;Novel architecture with strong empirical validation.&rdquo;</div>
+      
+    </div>
+    
+
+    <div class="card-footer">
+      
+      <span class="cat-tag cat-cs-LG">cs.LG</span>
+      
+      <span class="cat-tag cat-cs-AI">cs.AI</span>
+      
+      
+      <span class="tag">architectures</span>
+      
+      <span class="tag">efficiency</span>
+      
+    </div>
+  </article>
+  
+  <article class="paper-card">
+    <div class="card-header">
+      <div class="rank-badge rank-other">
+        11
+      </div>
+      <div class="card-title">
+        <a href="https://arxiv.org/abs/2401.10010" target="_blank" rel="noopener">Sample Paper #11: A Novel Approach to Something</a>
+      </div>
+    </div>
+
+    <div class="card-authors">Alice, Bob, Carol <span class="affiliations">— MIT, Google DeepMind</span></div>
+
+    
+    <div class="card-abstract">We present a novel approach to efficient neural network design that leverages structured sparsity patterns inspired by biological neural circuits. Our method introduces adaptive connectivity masks that dynamically prune and regrow connections during training, maintaining model expressiveness while reducing computational overhead. Experiments on ImageNet, COCO, and ADE20K demonstrate that our approach achieves competitive accuracy with 40% fewer FLOPs compared to dense baselines.</div>
+    
+
+    
+    <div class="summary-toggle">
+      <button onclick="this.parentElement.nextElementSibling.classList.toggle('open'); this.textContent = this.textContent === 'Show AI summary' ? 'Hide AI summary' : 'Show AI summary';">Show AI summary</button>
+    </div>
+    <div class="ai-summary">
+      <div class="ai-summary-label">AI Summary</div>
+      <div class="card-summary">This paper introduces a new method that achieves state-of-the-art results on common benchmarks while requiring significantly less compute.</div>
+      
+      <div class="contributions">
+        
+        <div class="contribution">A new architecture component that reduces FLOPs by 40%</div>
+        
+        <div class="contribution">SOTA results on ImageNet, COCO, and ADE20K</div>
+        
+      </div>
+      
+      
+      <div class="rank-rationale">&ldquo;Novel architecture with strong empirical validation.&rdquo;</div>
+      
+    </div>
+    
+
+    <div class="card-footer">
+      
+      <span class="cat-tag cat-cs-LG">cs.LG</span>
+      
+      <span class="cat-tag cat-cs-AI">cs.AI</span>
+      
+      
+      <span class="tag">architectures</span>
+      
+      <span class="tag">efficiency</span>
+      
+    </div>
+  </article>
+  
+  <article class="paper-card">
+    <div class="card-header">
+      <div class="rank-badge rank-other">
+        12
+      </div>
+      <div class="card-title">
+        <a href="https://arxiv.org/abs/2401.10011" target="_blank" rel="noopener">Sample Paper #12: A Novel Approach to Something</a>
+      </div>
+    </div>
+
+    <div class="card-authors">Alice, Bob, Carol <span class="affiliations">— MIT, Google DeepMind</span></div>
+
+    
+    <div class="card-abstract">We present a novel approach to efficient neural network design that leverages structured sparsity patterns inspired by biological neural circuits. Our method introduces adaptive connectivity masks that dynamically prune and regrow connections during training, maintaining model expressiveness while reducing computational overhead. Experiments on ImageNet, COCO, and ADE20K demonstrate that our approach achieves competitive accuracy with 40% fewer FLOPs compared to dense baselines.</div>
+    
+
+    
+    <div class="summary-toggle">
+      <button onclick="this.parentElement.nextElementSibling.classList.toggle('open'); this.textContent = this.textContent === 'Show AI summary' ? 'Hide AI summary' : 'Show AI summary';">Show AI summary</button>
+    </div>
+    <div class="ai-summary">
+      <div class="ai-summary-label">AI Summary</div>
+      <div class="card-summary">This paper introduces a new method that achieves state-of-the-art results on common benchmarks while requiring significantly less compute.</div>
+      
+      <div class="contributions">
+        
+        <div class="contribution">A new architecture component that reduces FLOPs by 40%</div>
+        
+        <div class="contribution">SOTA results on ImageNet, COCO, and ADE20K</div>
+        
+      </div>
+      
+      
+      <div class="rank-rationale">&ldquo;Novel architecture with strong empirical validation.&rdquo;</div>
+      
+    </div>
+    
+
+    <div class="card-footer">
+      
+      <span class="cat-tag cat-cs-LG">cs.LG</span>
+      
+      <span class="cat-tag cat-cs-AI">cs.AI</span>
+      
+      
+      <span class="tag">architectures</span>
+      
+      <span class="tag">efficiency</span>
+      
+    </div>
+  </article>
+  
+  <article class="paper-card">
+    <div class="card-header">
+      <div class="rank-badge rank-other">
+        13
+      </div>
+      <div class="card-title">
+        <a href="https://arxiv.org/abs/2401.10012" target="_blank" rel="noopener">Sample Paper #13: A Novel Approach to Something</a>
+      </div>
+    </div>
+
+    <div class="card-authors">Alice, Bob, Carol <span class="affiliations">— MIT, Google DeepMind</span></div>
+
+    
+    <div class="card-abstract">We present a novel approach to efficient neural network design that leverages structured sparsity patterns inspired by biological neural circuits. Our method introduces adaptive connectivity masks that dynamically prune and regrow connections during training, maintaining model expressiveness while reducing computational overhead. Experiments on ImageNet, COCO, and ADE20K demonstrate that our approach achieves competitive accuracy with 40% fewer FLOPs compared to dense baselines.</div>
+    
+
+    
+    <div class="summary-toggle">
+      <button onclick="this.parentElement.nextElementSibling.classList.toggle('open'); this.textContent = this.textContent === 'Show AI summary' ? 'Hide AI summary' : 'Show AI summary';">Show AI summary</button>
+    </div>
+    <div class="ai-summary">
+      <div class="ai-summary-label">AI Summary</div>
+      <div class="card-summary">This paper introduces a new method that achieves state-of-the-art results on common benchmarks while requiring significantly less compute.</div>
+      
+      <div class="contributions">
+        
+        <div class="contribution">A new architecture component that reduces FLOPs by 40%</div>
+        
+        <div class="contribution">SOTA results on ImageNet, COCO, and ADE20K</div>
+        
+      </div>
+      
+      
+      <div class="rank-rationale">&ldquo;Novel architecture with strong empirical validation.&rdquo;</div>
+      
+    </div>
+    
+
+    <div class="card-footer">
+      
+      <span class="cat-tag cat-cs-LG">cs.LG</span>
+      
+      <span class="cat-tag cat-cs-AI">cs.AI</span>
+      
+      
+      <span class="tag">architectures</span>
+      
+      <span class="tag">efficiency</span>
+      
+    </div>
+  </article>
+  
+  <article class="paper-card">
+    <div class="card-header">
+      <div class="rank-badge rank-other">
+        14
+      </div>
+      <div class="card-title">
+        <a href="https://arxiv.org/abs/2401.10013" target="_blank" rel="noopener">Sample Paper #14: A Novel Approach to Something</a>
+      </div>
+    </div>
+
+    <div class="card-authors">Alice, Bob, Carol <span class="affiliations">— MIT, Google DeepMind</span></div>
+
+    
+    <div class="card-abstract">We present a novel approach to efficient neural network design that leverages structured sparsity patterns inspired by biological neural circuits. Our method introduces adaptive connectivity masks that dynamically prune and regrow connections during training, maintaining model expressiveness while reducing computational overhead. Experiments on ImageNet, COCO, and ADE20K demonstrate that our approach achieves competitive accuracy with 40% fewer FLOPs compared to dense baselines.</div>
+    
+
+    
+    <div class="summary-toggle">
+      <button onclick="this.parentElement.nextElementSibling.classList.toggle('open'); this.textContent = this.textContent === 'Show AI summary' ? 'Hide AI summary' : 'Show AI summary';">Show AI summary</button>
+    </div>
+    <div class="ai-summary">
+      <div class="ai-summary-label">AI Summary</div>
+      <div class="card-summary">This paper introduces a new method that achieves state-of-the-art results on common benchmarks while requiring significantly less compute.</div>
+      
+      <div class="contributions">
+        
+        <div class="contribution">A new architecture component that reduces FLOPs by 40%</div>
+        
+        <div class="contribution">SOTA results on ImageNet, COCO, and ADE20K</div>
+        
+      </div>
+      
+      
+      <div class="rank-rationale">&ldquo;Novel architecture with strong empirical validation.&rdquo;</div>
+      
+    </div>
+    
+
+    <div class="card-footer">
+      
+      <span class="cat-tag cat-cs-LG">cs.LG</span>
+      
+      <span class="cat-tag cat-cs-AI">cs.AI</span>
+      
+      
+      <span class="tag">architectures</span>
+      
+      <span class="tag">efficiency</span>
+      
+    </div>
+  </article>
+  
+  <article class="paper-card">
+    <div class="card-header">
+      <div class="rank-badge rank-other">
+        15
+      </div>
+      <div class="card-title">
+        <a href="https://arxiv.org/abs/2401.10014" target="_blank" rel="noopener">Sample Paper #15: A Novel Approach to Something</a>
+      </div>
+    </div>
+
+    <div class="card-authors">Alice, Bob, Carol <span class="affiliations">— MIT, Google DeepMind</span></div>
+
+    
+    <div class="card-abstract">We present a novel approach to efficient neural network design that leverages structured sparsity patterns inspired by biological neural circuits. Our method introduces adaptive connectivity masks that dynamically prune and regrow connections during training, maintaining model expressiveness while reducing computational overhead. Experiments on ImageNet, COCO, and ADE20K demonstrate that our approach achieves competitive accuracy with 40% fewer FLOPs compared to dense baselines.</div>
+    
+
+    
+    <div class="summary-toggle">
+      <button onclick="this.parentElement.nextElementSibling.classList.toggle('open'); this.textContent = this.textContent === 'Show AI summary' ? 'Hide AI summary' : 'Show AI summary';">Show AI summary</button>
+    </div>
+    <div class="ai-summary">
+      <div class="ai-summary-label">AI Summary</div>
+      <div class="card-summary">This paper introduces a new method that achieves state-of-the-art results on common benchmarks while requiring significantly less compute.</div>
+      
+      <div class="contributions">
+        
+        <div class="contribution">A new architecture component that reduces FLOPs by 40%</div>
+        
+        <div class="contribution">SOTA results on ImageNet, COCO, and ADE20K</div>
+        
+      </div>
+      
+      
+      <div class="rank-rationale">&ldquo;Novel architecture with strong empirical validation.&rdquo;</div>
+      
+    </div>
+    
+
+    <div class="card-footer">
+      
+      <span class="cat-tag cat-cs-LG">cs.LG</span>
+      
+      <span class="cat-tag cat-cs-AI">cs.AI</span>
+      
+      
+      <span class="tag">architectures</span>
+      
+      <span class="tag">efficiency</span>
+      
+    </div>
+  </article>
+  
+</main>
+
+<footer>
+  Generated by ML Digest &middot; Summaries by Llama 3.3 &middot; 2026-04-06 23:04 UTC
+</footer>
+
+</body>
+</html>

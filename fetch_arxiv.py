@@ -33,6 +33,7 @@ class ArxivPaper:
     link: str
     primary_category: str
     published: str = ""
+    announce_type: str = ""
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -69,6 +70,20 @@ def _parse_categories(entry) -> list[str]:
     return []
 
 
+def _parse_announce_type(abstract: str) -> tuple[str, str]:
+    """Parse announce type and strip RSS metadata prefix from abstract.
+
+    arxiv RSS abstracts look like:
+        'arXiv:2603.26671v1 Announce Type: new Abstract: As neural networks...'
+
+    Returns (announce_type, cleaned_abstract).
+    """
+    match = re.match(r"^arXiv:\S+\s+Announce Type:\s*(\S+)\s+Abstract:\s*", abstract)
+    if match:
+        return match.group(1), abstract[match.end():]
+    return "", abstract
+
+
 def fetch_category(category: str) -> list[ArxivPaper]:
     """Fetch new papers from a single arxiv category RSS feed."""
     url = RSS_BASE.format(category=category)
@@ -76,19 +91,22 @@ def fetch_category(category: str) -> list[ArxivPaper]:
     feed = feedparser.parse(url)
 
     papers = []
+    skipped_replacements = 0
     for entry in feed.entries:
-        # Skip "replacements" — we only want new submissions
         title = _clean_text(entry.get("title", ""))
-        if title.lower().startswith("replaced:") or "(replaced)" in title.lower():
-            continue
-
-        # Some RSS feeds prefix with category tags like "cs.LG: Title"
-        # The arxiv RSS uses <title> directly
         link = entry.get("link", "")
         arxiv_id = _extract_arxiv_id(link)
-        abstract = _clean_text(entry.get("summary", entry.get("description", "")))
+        raw_abstract = _clean_text(entry.get("summary", entry.get("description", "")))
         categories = _parse_categories(entry)
         authors = _parse_authors(entry)
+
+        # Parse announce type and strip RSS metadata prefix from abstract
+        announce_type, abstract = _parse_announce_type(raw_abstract)
+
+        # Skip replacements — we only want new submissions and cross-listings
+        if announce_type in ("replace", "replace-cross"):
+            skipped_replacements += 1
+            continue
 
         paper = ArxivPaper(
             arxiv_id=arxiv_id,
@@ -99,10 +117,11 @@ def fetch_category(category: str) -> list[ArxivPaper]:
             link=f"https://arxiv.org/abs/{arxiv_id}",
             primary_category=category,
             published=entry.get("published", entry.get("updated", "")),
+            announce_type=announce_type,
         )
         papers.append(paper)
 
-    print(f"    Found {len(papers)} new papers in {category}")
+    print(f"    Found {len(papers)} new papers in {category} (skipped {skipped_replacements} replacements)")
     return papers
 
 
