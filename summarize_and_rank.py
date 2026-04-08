@@ -16,7 +16,7 @@ import os
 import random
 import re
 import time
-from openai import OpenAI, APIStatusError
+from openai import OpenAI, APIStatusError, APIConnectionError
 from dataclasses import dataclass, asdict
 from typing import Optional
 from tqdm import tqdm
@@ -77,6 +77,10 @@ def _call_llm(
                 text = text.split("\n", 1)[1].rsplit("```", 1)[0].strip()
             time.sleep(RATE_LIMIT_SLEEP)
             return text
+        except APIConnectionError:
+                wait = min(10 * (2 ** attempt), 120)
+                tqdm.write(f"  Connection error (attempt {attempt + 1}/{max_retries}), waiting {wait:.0f}s...")
+                time.sleep(wait)
         except APIStatusError as e:
             if e.status_code in (413, 429):
                 # Extract retry delay from error if available
@@ -86,7 +90,7 @@ def _call_llm(
                 time.sleep(wait)
             else:
                 raise
-    raise RuntimeError(f"Failed after {max_retries} retries due to rate limiting")
+    raise RuntimeError(f"Failed after {max_retries} retries")
 
 
 # ── Data model ───────────────────────────────────────────────

@@ -21,18 +21,18 @@ uv run python pdf_extraction.py 2401.00001  # Test PDF download + text extractio
 uv run python generate_site.py           # Generate preview with dummy data → site/index.html
 ```
 
-No test suite or linter is configured.
+No test suite or linter is configured. Dependencies are in `pyproject.toml` (the `requirements.txt` is legacy and not used).
 
 ## Architecture
 
 Pipeline orchestrated by `run_pipeline.py` (6 steps, or 5 with `--skip-pdf`):
 
 1. **fetch_arxiv.py** — Pulls RSS feeds for 5 categories (cs.LG, cs.CL, cs.AI, cs.CV, cs.RO), filters out replacements (~37% of RSS volume) by parsing `Announce Type` from abstract metadata, strips RSS prefix from abstracts, and deduplicates cross-listed papers by arxiv_id. Returns `ArxivPaper` dataclass instances.
-2. **summarize_and_rank.py** `cull_abstracts_tournament()` — Tournament-style culling: shuffles papers, splits into batches of 50, LLM picks top ~6 from each batch based on raw abstracts (no summarization). Uses `llama-3.1-8b-instant` for higher TPM limits. ~10 API calls for 500 papers → ~60 survivors.
+2. **summarize_and_rank.py** `cull_abstracts_tournament()` — Tournament-style culling: shuffles papers, splits into batches. The function defaults to batches of 50, but `run_pipeline.py` overrides this to **batches of 5** to stay under Groq free tier's 6k TPM limit. LLM picks top survivors from each batch based on raw abstracts (no summarization). Uses `llama-3.1-8b-instant`. For ~500 papers this means ~100 API calls → ~60 survivors.
 3. **pdf_extraction.py** `download_and_extract()` — Downloads PDFs for ~60 survivors (4s delay between requests), extracts text via PyMuPDF. Strips images, tables, captions, and references before truncating to ~25k chars. Skipped with `--skip-pdf`.
 4. **summarize_and_rank.py** `summarize_with_full_text()` — Summarizes survivors using full text in batches of 5. Falls back to abstract-based summary if PDF extraction failed. ~12 API calls. With `--skip-pdf`, uses `summarize_all_abstracts()` in batches of 20 instead.
 5. **summarize_and_rank.py** `rank_and_select()` — Final ranking selects top 15 from ~60 summarized candidates. 1 API call. Supports `--rank-provider gemini` for Gemini Pro.
-6. **generate_site.py** — Renders Jinja2 template (inline `HTML_TEMPLATE` string) to a self-contained HTML file. Writes both `index.html` and a dated archive copy.
+6. **generate_site.py** — Renders Jinja2 template (inline `HTML_TEMPLATE` string) to a self-contained HTML file. Writes both `index.html` and a dated archive copy to `{output}/archive/{date}.html`.
 
 Data flow: `ArxivPaper` → dict → (tournament cull) → dict → (PDF text) → `PaperSummary` → dict → HTML
 
@@ -47,5 +47,5 @@ Intermediate JSON cached in `.cache/`: `_fetched.json`, `_culled.json`, `_fullte
 - `--from-cache` flag allows rerunning the pipeline from a cached `_fetched.json` (useful on weekends when arxiv RSS is empty).
 - All LLM calls go through `_call_llm()` in `summarize_and_rank.py`, which handles markdown-fence stripping, rate-limit retries with exponential backoff (up to 5 retries), and a 2s sleep between calls. All LLM responses are expected to be raw JSON (no markdown fences).
 - `preview.py` contains sample paper data and a hardcoded output path from a different environment; use `generate_site.py` directly for local previews.
-- `main.py` is a stub placeholder — the real entrypoint is `run_pipeline.py`.
+- The real entrypoint is `run_pipeline.py`.
 - The GitHub Action (`.github/workflows/daily-digest.yml`) runs at 9 PM UTC daily, outputs to `docs/`, and auto-commits.
