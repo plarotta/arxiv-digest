@@ -56,6 +56,7 @@ def _call_llm(
     provider: str = "groq",
     max_tokens: int = 4096,
     max_retries: int = 5,
+    post_call_sleep: float | None = None,
 ) -> str:
     """Make an LLM API call and return the text response.
     Handles markdown-fence stripping, rate-limit retries with backoff."""
@@ -75,7 +76,7 @@ def _call_llm(
             # Strip markdown fences if present
             if text.startswith("```"):
                 text = text.split("\n", 1)[1].rsplit("```", 1)[0].strip()
-            time.sleep(RATE_LIMIT_SLEEP)
+            time.sleep(post_call_sleep if post_call_sleep is not None else RATE_LIMIT_SLEEP)
             return text
         except APIConnectionError:
                 wait = min(10 * (2 ** attempt), 120)
@@ -332,7 +333,7 @@ def summarize_with_full_text(
                 f"Title: {p['title']}\n"
                 f"Authors: {', '.join(p['authors'][:5])}{'...' if len(p['authors']) > 5 else ''}\n"
                 f"Categories: {', '.join(p['categories'])}\n"
-                f"Full Text:\n{full_texts[p['arxiv_id']]}"
+                f"Full Text:\n{full_texts[p['arxiv_id']][:8000]}"
                 for p in chunk
             )
 
@@ -341,6 +342,7 @@ def summarize_with_full_text(
                 user=f"Summarize these {len(chunk)} papers using their full text:\n\n{papers_text}",
                 model=SUMMARIZE_MODEL,
                 max_tokens=8192,
+                post_call_sleep=60,
             )
 
             try:
