@@ -129,7 +129,7 @@ def main():
 
         # ── Step 4: Summarize with full text ──────────────────
         print(f"\n[4/6] Summarizing with full paper text...")
-        summaries = summarize_with_full_text(culled, full_texts)
+        summaries = summarize_with_full_text(culled, full_texts, chunk_size=1)
         summaries_dicts = [s.to_dict() for s in summaries]
         save_json(summaries_dicts, f"{args.cache_dir}/{date_str}_fulltext_summaries.json")
 
