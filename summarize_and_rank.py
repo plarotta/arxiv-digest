@@ -24,11 +24,17 @@ from tqdm import tqdm
 # ── Provider config ──────────────────────────────────────────
 GROQ_BASE_URL = "https://api.groq.com/openai/v1"
 GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/"
+OLLAMA_BASE_URL = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434/v1")
 
 CULL_MODEL = "llama-3.1-8b-instant"  # Small model for high-volume cull (higher TPM limits)
 SUMMARIZE_MODEL = "llama-3.3-70b-versatile"
 RANK_MODEL_GROQ = "llama-3.3-70b-versatile"
 RANK_MODEL_GEMINI = "gemini-2.5-pro"
+
+# Local Ollama model — single small model used for cull, summarize, and rank.
+# Default sized for GitHub Actions free runners (4-core CPU, 16GB RAM, 14GB SSD).
+# Override with $OLLAMA_MODEL (e.g. "gemma4:e4b" on a beefier host).
+OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "gemma4:e2b")
 
 RATE_LIMIT_SLEEP = 2  # seconds between API calls
 
@@ -44,9 +50,21 @@ def _get_client(provider: str = "groq") -> OpenAI:
         elif provider == "gemini":
             api_key = os.environ.get("GEMINI_API_KEY", "") or os.environ.get("GOOGLE_API_KEY", "")
             _clients[provider] = OpenAI(base_url=GEMINI_BASE_URL, api_key=api_key)
+        elif provider == "ollama":
+            _clients[provider] = OpenAI(base_url=OLLAMA_BASE_URL, api_key="ollama")
         else:
             raise ValueError(f"Unknown provider: {provider}")
     return _clients[provider]
+
+
+def _model_for(provider: str, task: str) -> str:
+    """Pick the right model for (provider, task) where task is 'cull', 'summarize', or 'rank'."""
+    if provider == "ollama":
+        return OLLAMA_MODEL
+    if provider == "gemini":
+        return RANK_MODEL_GEMINI
+    # groq
+    return CULL_MODEL if task == "cull" else SUMMARIZE_MODEL
 
 
 def _call_llm(
@@ -61,6 +79,9 @@ def _call_llm(
     """Make an LLM API call and return the text response.
     Handles markdown-fence stripping, rate-limit retries with backoff."""
     client = _get_client(provider)
+    # Local Ollama has no rate limits or TPM caps — skip post-call sleep entirely.
+    if provider == "ollama":
+        post_call_sleep = 0
     for attempt in range(max_retries):
         try:
             response = client.chat.completions.create(
@@ -197,6 +218,7 @@ def cull_abstracts_tournament(
     papers: list[dict],
     survivors_per_batch: int = 5,
     batch_size: int = 50,
+    provider: str = "groq",
 ) -> list[dict]:
     """Select top candidates from raw abstracts using tournament-style batching.
     Shuffles papers to avoid positional bias, splits into batches, and asks
@@ -224,7 +246,8 @@ def cull_abstracts_tournament(
         text = _call_llm(
             system=CULL_SYSTEM.format(k=k),
             user=f"Review these {len(batch)} papers and select the top {k}:\n\n{papers_text}",
-            model=CULL_MODEL,
+            model=_model_for(provider, "cull"),
+            provider=provider,
             max_tokens=4096,
         )
 
@@ -253,7 +276,7 @@ def cull_abstracts_tournament(
 
 # ── Summarization ────────────────────────────────────────────
 
-def summarize_batch(papers: list[dict]) -> list[dict]:
+def summarize_batch(papers: list[dict], provider: str = "groq") -> list[dict]:
     """Summarize a batch of papers from their abstracts."""
     papers_text = "\n\n".join(
         f"--- Paper {p['arxiv_id']} ---\n"
@@ -267,7 +290,8 @@ def summarize_batch(papers: list[dict]) -> list[dict]:
     text = _call_llm(
         system=SUMMARIZE_SYSTEM,
         user=f"Summarize these {len(papers)} papers:\n\n{papers_text}",
-        model=SUMMARIZE_MODEL,
+        model=_model_for(provider, "summarize"),
+        provider=provider,
         max_tokens=4096,
     )
 
@@ -279,14 +303,18 @@ def summarize_batch(papers: list[dict]) -> list[dict]:
         return []
 
 
-def summarize_all_abstracts(papers: list[dict], chunk_size: int = 20) -> list[PaperSummary]:
+def summarize_all_abstracts(
+    papers: list[dict],
+    chunk_size: int = 20,
+    provider: str = "groq",
+) -> list[PaperSummary]:
     """Summarize papers from abstracts in batches. Used in --skip-pdf mode."""
     chunks = [papers[i:i + chunk_size] for i in range(0, len(papers), chunk_size)]
     all_summaries = []
     paper_lookup = {p["arxiv_id"]: p for p in papers}
 
     for chunk in tqdm(chunks, desc="Summarizing (abstracts)", unit="batch"):
-        batch_results = summarize_batch(chunk)
+        batch_results = summarize_batch(chunk, provider=provider)
         for s in batch_results:
             aid = s.get("arxiv_id", "")
             orig = paper_lookup.get(aid, {})
@@ -312,6 +340,7 @@ def summarize_with_full_text(
     papers: list[dict],
     full_texts: dict[str, str],
     chunk_size: int = 5,
+    provider: str = "groq",
 ) -> list[PaperSummary]:
     """Summarize papers using full paper text. Papers without full text
     fall back to abstract-based summarization."""
@@ -340,9 +369,11 @@ def summarize_with_full_text(
             text = _call_llm(
                 system=RESUMMARIZE_SYSTEM,
                 user=f"Summarize these {len(chunk)} papers using their full text:\n\n{papers_text}",
-                model=SUMMARIZE_MODEL,
+                model=_model_for(provider, "summarize"),
+                provider=provider,
                 max_tokens=8192,
-                post_call_sleep=60,
+                # 60s post-call sleep is to stay under Groq 70B's TPM limit; not needed for ollama.
+                post_call_sleep=None if provider == "ollama" else 60,
             )
 
             try:
@@ -382,7 +413,7 @@ def summarize_with_full_text(
 
     # Fallback: summarize papers without full text from abstracts
     if without_text:
-        fallback = summarize_all_abstracts(without_text, chunk_size=20)
+        fallback = summarize_all_abstracts(without_text, chunk_size=20, provider=provider)
         all_summaries.extend(fallback)
 
     return all_summaries
@@ -403,7 +434,7 @@ def rank_and_select(
             s.rank_rationale = "Included (fewer papers than slots)."
         return summaries
 
-    model = RANK_MODEL_GEMINI if provider == "gemini" else RANK_MODEL_GROQ
+    model = _model_for(provider, "rank")
 
     summaries_text = "\n\n".join(
         f"[{s.arxiv_id}] {s.title}\n"

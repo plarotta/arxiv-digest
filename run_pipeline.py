@@ -51,9 +51,13 @@ def main():
     parser.add_argument("--dry-run", action="store_true", help="Fetch papers only, skip API calls")
     parser.add_argument("--from-cache", type=str, default=None, help="Load papers from a cached JSON file instead of fetching RSS")
     parser.add_argument("--cache-dir", default=".cache", help="Directory for intermediate JSON files")
-    parser.add_argument("--rank-provider", choices=["groq", "gemini"], default="groq",
-                        help="LLM provider for the final ranking step (default: groq)")
+    parser.add_argument("--provider", choices=["groq", "ollama"], default="groq",
+                        help="LLM provider for cull + summarize (default: groq). 'ollama' uses a local server.")
+    parser.add_argument("--rank-provider", choices=["groq", "gemini", "ollama"], default=None,
+                        help="LLM provider for the final ranking step. Defaults to --provider.")
     args = parser.parse_args()
+    if args.rank_provider is None:
+        args.rank_provider = args.provider
 
     categories = args.categories or CATEGORIES
     date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
@@ -62,7 +66,7 @@ def main():
     print(f"  ML Digest Pipeline — {date_str}")
     print(f"  Categories: {', '.join(categories)}")
     print(f"  Top N: {args.top}")
-    print(f"  Rank provider: {args.rank_provider}")
+    print(f"  Provider: {args.provider}  (rank: {args.rank_provider})")
     print("=" * 60)
 
     # ── Step 1: Fetch papers ──────────────────────────────────
@@ -87,7 +91,8 @@ def main():
         sys.exit(0)
 
     # ── Env var checks ────────────────────────────────────────
-    if "GROQ_API_KEY" not in os.environ:
+    needs_groq = args.provider == "groq" or args.rank_provider == "groq"
+    if needs_groq and "GROQ_API_KEY" not in os.environ:
         print("ERROR: GROQ_API_KEY not set. Export it and retry.")
         sys.exit(1)
     if args.rank_provider == "gemini" and "GEMINI_API_KEY" not in os.environ and "GOOGLE_API_KEY" not in os.environ:
@@ -96,9 +101,10 @@ def main():
 
     # ── Step 2: Tournament cull ───────────────────────────────
     shortlist_n = max(args.shortlist, args.top)
-    # Uses the smaller 8B model for culling — batch size kept small to stay
-    # under Groq free tier's 6k TPM limit (~400 tokens per paper)
-    batch_size = 5
+    # Groq free tier has a 6k TPM cap on the cull model (~400 tokens/paper → batch=5).
+    # Local Ollama has no TPM cap, so use much larger batches to minimize call count
+    # on a CPU-only runner.
+    batch_size = 25 if args.provider == "ollama" else 5
     num_batches = max(1, (len(papers_dicts) + batch_size - 1) // batch_size)
     survivors_per_batch = max(1, round(shortlist_n / num_batches))
 
@@ -108,13 +114,14 @@ def main():
         papers_dicts,
         survivors_per_batch=survivors_per_batch,
         batch_size=batch_size,
+        provider=args.provider,
     )
     save_json(culled, f"{args.cache_dir}/{date_str}_culled.json")
 
     if args.skip_pdf:
         # ── Abstract-only mode ────────────────────────────────
         print(f"\n[3/6] Summarizing {len(culled)} papers from abstracts (skip-pdf mode)...")
-        summaries = summarize_all_abstracts(culled)
+        summaries = summarize_all_abstracts(culled, provider=args.provider)
         summaries_dicts = [s.to_dict() for s in summaries]
         save_json(summaries_dicts, f"{args.cache_dir}/{date_str}_summaries.json")
 
@@ -128,8 +135,13 @@ def main():
         full_texts = download_and_extract(arxiv_ids, cache_dir=f"{args.cache_dir}/pdfs")
 
         # ── Step 4: Summarize with full text ──────────────────
-        print(f"\n[4/6] Summarizing with full paper text...")
-        summaries = summarize_with_full_text(culled, full_texts, chunk_size=1)
+        # Single-paper chunks for Groq (per-call TPM ceiling on 70B model).
+        # Ollama has no TPM cap — group full-text papers to amortize prefill.
+        summarize_chunk = 3 if args.provider == "ollama" else 1
+        print(f"\n[4/6] Summarizing with full paper text (chunks of {summarize_chunk})...")
+        summaries = summarize_with_full_text(
+            culled, full_texts, chunk_size=summarize_chunk, provider=args.provider,
+        )
         summaries_dicts = [s.to_dict() for s in summaries]
         save_json(summaries_dicts, f"{args.cache_dir}/{date_str}_fulltext_summaries.json")
 

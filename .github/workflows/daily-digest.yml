@@ -7,6 +7,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # CPU inference is slow; allow up to 5.5h (the runner caps at 6h).
+    timeout-minutes: 330
     steps:
       - uses: actions/checkout@v4
 
@@ -17,10 +19,33 @@ jobs:
       - name: Install uv and sync dependencies
         run: pip install uv && uv sync
 
+      - name: Install Ollama
+        run: curl -fsSL https://ollama.com/install.sh | sh
+
+      - name: Cache Ollama model
+        id: ollama-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.ollama/models
+          key: ollama-models-gemma4-e2b-v1
+
+      - name: Start Ollama server
+        run: |
+          nohup ollama serve > ollama.log 2>&1 &
+          for i in {1..60}; do
+            if curl -sf http://localhost:11434/api/tags >/dev/null; then
+              echo "Ollama is up."; break
+            fi
+            sleep 1
+          done
+
+      - name: Pull Gemma 4 E2B model
+        run: ollama pull gemma4:e2b
+
       - name: Run digest pipeline
-        run: uv run python run_pipeline.py --output docs/
+        run: uv run python run_pipeline.py --provider ollama --output docs/
         env:
-          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          OLLAMA_MODEL: gemma4:e2b
 
       - name: Commit and push
         uses: stefanzweifel/git-auto-commit-action@v5
