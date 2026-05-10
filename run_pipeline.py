@@ -102,9 +102,9 @@ def main():
     # ── Step 2: Tournament cull ───────────────────────────────
     shortlist_n = max(args.shortlist, args.top)
     # Groq free tier has a 6k TPM cap on the cull model (~400 tokens/paper → batch=5).
-    # Local Ollama has no TPM cap, so use much larger batches to minimize call count
-    # on a CPU-only runner.
-    batch_size = 25 if args.provider == "ollama" else 5
+    # Ollama has no TPM cap but small open models (gemma4) lose JSON-following
+    # ability past ~10 papers per batch, so don't push it.
+    batch_size = 10 if args.provider == "ollama" else 5
     num_batches = max(1, (len(papers_dicts) + batch_size - 1) // batch_size)
     survivors_per_batch = max(1, round(shortlist_n / num_batches))
 

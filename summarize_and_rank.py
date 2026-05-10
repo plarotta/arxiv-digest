@@ -33,8 +33,8 @@ RANK_MODEL_GEMINI = "gemini-2.5-pro"
 
 # Local Ollama model — single small model used for cull, summarize, and rank.
 # Default sized for GitHub Actions free runners (4-core CPU, 16GB RAM, 14GB SSD).
-# Override with $OLLAMA_MODEL (e.g. "gemma4:e4b" on a beefier host).
-OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "gemma4:e2b")
+# Override with $OLLAMA_MODEL (e.g. "gemma4:e2b" if SSD-constrained).
+OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "gemma4:e4b")
 
 RATE_LIMIT_SLEEP = 2  # seconds between API calls
 
@@ -55,6 +55,26 @@ def _get_client(provider: str = "groq") -> OpenAI:
         else:
             raise ValueError(f"Unknown provider: {provider}")
     return _clients[provider]
+
+
+def _parse_json_list(text: str) -> list:
+    """Parse an LLM response that should be a list. Accepts a raw JSON array,
+    or an object wrapping a list under a common key (results/selections/papers/etc.),
+    or any object whose first list-valued field is the payload. Returns [] on failure."""
+    try:
+        data = json.loads(text)
+    except json.JSONDecodeError:
+        raise
+    if isinstance(data, list):
+        return data
+    if isinstance(data, dict):
+        for k in ("results", "selections", "papers", "items", "summaries", "rankings", "data"):
+            if isinstance(data.get(k), list):
+                return data[k]
+        for v in data.values():
+            if isinstance(v, list):
+                return v
+    return []
 
 
 def _model_for(provider: str, task: str) -> str:
@@ -82,6 +102,12 @@ def _call_llm(
     # Local Ollama has no rate limits or TPM caps — skip post-call sleep entirely.
     if provider == "ollama":
         post_call_sleep = 0
+    # Force JSON output via grammar-constrained decoding. Small models like
+    # gemma4 ignore "respond with JSON" instructions on long contexts; JSON
+    # mode makes non-JSON output impossible at the decoder level.
+    kwargs = {}
+    if provider == "ollama":
+        kwargs["response_format"] = {"type": "json_object"}
     for attempt in range(max_retries):
         try:
             response = client.chat.completions.create(
@@ -92,6 +118,7 @@ def _call_llm(
                 ],
                 max_tokens=max_tokens,
                 temperature=0.2,
+                **kwargs,
             )
             text = response.choices[0].message.content.strip()
             # Strip markdown fences if present
@@ -147,10 +174,13 @@ significant, novel, or impactful work. Judge based on:
 - Potential to influence future research directions
 - Diversity across subfields (don't pick all NLP papers if there's great vision/RL work too)
 
-Respond with a JSON array of exactly {k} objects:
-{{"arxiv_id": "...", "rationale": "One sentence on why this paper looks promising."}}
+Respond with a JSON object of the form:
+{{"results": [
+  {{"arxiv_id": "...", "rationale": "One sentence on why this paper looks promising."}},
+  ... exactly {k} entries total ...
+]}}
 
-Return ONLY valid JSON, no markdown fences."""
+Each arxiv_id MUST be one of the IDs from the input. Return ONLY valid JSON, no markdown fences."""
 
 
 SUMMARIZE_SYSTEM = """You are an expert ML researcher summarizing new arxiv papers.
@@ -159,12 +189,17 @@ For each paper, provide:
 2. A list of key contributions (1-4 items, each a single sentence).
 3. Relevance tags from: [architectures, training, optimization, nlp, vision, robotics, rl, generative, theory, efficiency, safety, multimodal, data, evaluation, agents, other].
 
-Respond with a JSON array. Each element:
+Respond with a JSON object of the form:
 {
-  "arxiv_id": "...",
-  "summary": "...",
-  "contributions": ["...", "..."],
-  "relevance_tags": ["...", "..."]
+  "results": [
+    {
+      "arxiv_id": "...",
+      "summary": "...",
+      "contributions": ["...", "..."],
+      "relevance_tags": ["...", "..."]
+    },
+    ... one entry per input paper ...
+  ]
 }
 
 Be precise and technical. Focus on what's genuinely novel vs. incremental.
@@ -179,13 +214,18 @@ For each paper:
 3. Relevance tags from: [architectures, training, optimization, nlp, vision, robotics, rl, generative, theory, efficiency, safety, multimodal, data, evaluation, agents, other].
 4. Author affiliations — extract the unique university or organization names from the paper header (e.g. ["MIT", "Google DeepMind"]). If not clearly stated, return an empty list.
 
-Respond with a JSON array. Each element:
+Respond with a JSON object of the form:
 {
-  "arxiv_id": "...",
-  "summary": "...",
-  "contributions": ["...", "..."],
-  "relevance_tags": ["...", "..."],
-  "affiliations": ["...", "..."]
+  "results": [
+    {
+      "arxiv_id": "...",
+      "summary": "...",
+      "contributions": ["...", "..."],
+      "relevance_tags": ["...", "..."],
+      "affiliations": ["...", "..."]
+    },
+    ... one entry per input paper ...
+  ]
 }
 
 Be precise and technical. Highlight specific quantitative results where available.
@@ -202,12 +242,11 @@ the most significant, novel, or impactful work. Prioritize:
 - Papers likely to influence future research directions
 - Breadth across subfields (don't pick all NLP papers if there's great vision/RL work too)
 
-Respond with a JSON array of exactly {top_n} objects, ranked #1 (best) to #{top_n}:
-{{
-  "arxiv_id": "...",
-  "rank": 1,
-  "rationale": "One sentence on why this paper made the cut."
-}}
+Respond with a JSON object of the form:
+{{"results": [
+  {{"arxiv_id": "...", "rank": 1, "rationale": "One sentence on why this paper made the cut."}},
+  ... exactly {top_n} entries, ranked #1 (best) to #{top_n} ...
+]}}
 
 Return ONLY valid JSON, no markdown fences."""
 
@@ -252,10 +291,15 @@ def cull_abstracts_tournament(
         )
 
         try:
-            selections = json.loads(text)
+            selections = _parse_json_list(text)
+            # Drop any non-dict items (e.g. plain strings) — the model occasionally
+            # returns a list of arxiv_ids instead of structured objects.
+            selections = [s for s in selections if isinstance(s, dict)]
+            if not selections:
+                raise ValueError("no dict-shaped selections")
             surviving_ids.extend(selections)
-        except json.JSONDecodeError as e:
-            tqdm.write(f"  WARNING: JSON parse error in cull batch: {e}")
+        except (json.JSONDecodeError, ValueError) as e:
+            tqdm.write(f"  WARNING: parse error in cull batch: {e}")
             tqdm.write(f"  Raw response (first 500 chars): {text[:500]}")
             # Fallback: keep first k papers from this batch
             for p in batch[:k]:
@@ -264,6 +308,8 @@ def cull_abstracts_tournament(
     # Return full paper dicts for survivors
     survivors = []
     for s in surviving_ids:
+        if not isinstance(s, dict):
+            continue
         aid = s.get("arxiv_id", "")
         if aid in paper_lookup:
             paper = paper_lookup[aid].copy()
@@ -296,7 +342,8 @@ def summarize_batch(papers: list[dict], provider: str = "groq") -> list[dict]:
     )
 
     try:
-        return json.loads(text)
+        results = _parse_json_list(text)
+        return [r for r in results if isinstance(r, dict)]
     except json.JSONDecodeError as e:
         print(f"  WARNING: JSON parse error in summarize batch: {e}")
         print(f"  Raw response (first 500 chars): {text[:500]}")
@@ -377,7 +424,8 @@ def summarize_with_full_text(
             )
 
             try:
-                batch_results = json.loads(text)
+                batch_results = _parse_json_list(text)
+                batch_results = [r for r in batch_results if isinstance(r, dict)]
             except json.JSONDecodeError as e:
                 tqdm.write(f"    WARNING: JSON parse error in full-text batch: {e}")
                 # Fallback: create bare summaries from abstracts for this chunk
@@ -458,7 +506,8 @@ def rank_and_select(
     )
 
     try:
-        rankings = json.loads(text)
+        rankings = _parse_json_list(text)
+        rankings = [r for r in rankings if isinstance(r, dict)]
     except json.JSONDecodeError as e:
         print(f"  WARNING: JSON parse error in ranking: {e}")
         print(f"  Falling back to first {top_n} papers.")

@@ -27,7 +27,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.ollama/models
-          key: ollama-models-gemma4-e2b-v1
+          key: ollama-models-gemma4-e4b-v1
 
       - name: Start Ollama server
         run: |
@@ -39,13 +39,13 @@ jobs:
             sleep 1
           done
 
-      - name: Pull Gemma 4 E2B model
-        run: ollama pull gemma4:e2b
+      - name: Pull Gemma 4 E4B model
+        run: ollama pull gemma4:e4b
 
       - name: Run digest pipeline
         run: uv run python run_pipeline.py --provider ollama --output docs/
         env:
-          OLLAMA_MODEL: gemma4:e2b
+          OLLAMA_MODEL: gemma4:e4b
 
       - name: Commit and push
         uses: stefanzweifel/git-auto-commit-action@v5
